@@ -23,6 +23,23 @@ def _gdelt_dt(d: date, *, is_end: bool) -> str:
     return d.strftime("%Y%m%d") + "000000"
 
 
+def _normalize_gdelt_query(q: str) -> str:
+    """
+    GDELT query syntax notes:
+    - If a query contains OR'd terms, GDELT requires parentheses around the OR group.
+      Example: (AAPL OR Apple)
+    - We only apply minimal normalization to avoid breaking advanced user queries.
+    """
+    q = (q or "").strip()
+    if not q:
+        return q
+
+    # Wrap top-level OR queries in parentheses if not already wrapped.
+    if " OR " in q and not (q.startswith("(") and q.endswith(")")):
+        q = f"({q})"
+    return q
+
+
 def _throttle_gdelt(min_interval_s: float = 5.0) -> None:
     """
     GDELT explicitly asks for <= 1 request per 5 seconds (429 otherwise).
@@ -48,7 +65,7 @@ class GDELTProvider(Provider):
     def fetch(self, request: dict, ctx) -> pd.DataFrame:
         requests = require_optional("requests", extra_hint="news")
 
-        query = str(request.get("query", "inflation")).strip()
+        query = _normalize_gdelt_query(str(request.get("query", "inflation")))
         if not query:
             raise ValueError("query must be a non-empty string.")
 

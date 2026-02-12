@@ -65,8 +65,9 @@ def _auto_news_query_finance(tickers: list[str]) -> str:
     for term in terms:
         if term not in seen:
             seen.add(term)
-            out.append(term)
-    return " OR ".join(out)
+            # Quote multi-word terms for GDELT query syntax.
+            out.append(f"\"{term}\"" if any(ch.isspace() for ch in term) else term)
+    return "(" + " OR ".join(out) + ")"
 
 
 def _auto_news_query_econ(series_ids: list[str]) -> str:
@@ -93,8 +94,8 @@ def _auto_news_query_econ(series_ids: list[str]) -> str:
     for term in terms:
         if term not in seen:
             seen.add(term)
-            out.append(term)
-    return " OR ".join(out)
+            out.append(f"\"{term}\"" if any(ch.isspace() for ch in term) else term)
+    return "(" + " OR ".join(out) + ")"
 
 
 def _job_by_id(storage: SQLiteStorage, job_id: str):
@@ -486,6 +487,10 @@ def main():
             if "model_jobs" not in latest:
                 model_jobs: dict[str, str] = {}
                 for mid in latest.get("models", []):
+                    # Default to using the macro artifact as input for all models.
+                    input_job_id = first_job
+                    input_path = jobs_by_id[first_job].output_path
+
                     if mid == "ar1":
                         params = {"y_col": "value"}
                     elif mid == "ols":
@@ -501,12 +506,9 @@ def main():
                             df_tmp["shock"] = pd.to_numeric(df_tmp[yname], errors="coerce").diff()
                             tmp_path = jobs_by_id[first_job].output_path + ".lp_shock.csv"
                             df_tmp.to_csv(tmp_path, index=False)
-                            input_job_id = first_job
                             input_path = tmp_path
                             shock_col = "shock"
                         else:
-                            input_job_id = first_job
-                            input_path = jobs_by_id[first_job].output_path
                             shock_col = latest.get("shock_col", "shock")
                         params = {
                             "y_col": latest.get("y_col", "value"),
