@@ -1,6 +1,7 @@
 """E2E smoke test using real providers. Requires network and optional deps: yfinance, requests, pandas-datareader."""
 from __future__ import annotations
 
+import os
 import time
 import tempfile
 from pathlib import Path
@@ -24,10 +25,11 @@ def main() -> None:
 
     try:
         # Finance
+        market_provider = "fmp" if (os.getenv("FINREC_FMP_API_KEY") or "").strip() else "yfinance"
         market_job = submit_provider_fetch(
             runner=runner,
             kind="market",
-            provider_id="yfinance",
+            provider_id=market_provider,
             request={"symbol": "AAPL", "start_date": "2020-01-01", "end_date": "2020-02-01", "n": 30},
         )
         news_job = submit_provider_fetch(
@@ -92,6 +94,26 @@ def main() -> None:
 
         jobs = {j.job_id: j for j in storage.list_jobs(limit=50)}
         assert jobs[fred_job].output_path
+
+        # Macro transform: inflation YoY
+        infl_job = submit_recipe_run(
+            runner=runner,
+            input_job_id=fred_job,
+            input_path=jobs[fred_job].output_path,
+            recipe_id="inflation_yoy",
+            params={"date_col": "date", "value_col": "value", "out_col": "inflation_yoy"},
+        )
+
+        for _ in range(200):
+            jobs = {j.job_id: j for j in storage.list_jobs(limit=50)}
+            if jobs.get(infl_job) and jobs[infl_job].status == "SUCCEEDED":
+                break
+            time.sleep(0.05)
+
+        jobs = {j.job_id: j for j in storage.list_jobs(limit=50)}
+        assert jobs[infl_job].output_path
+        df_infl = pd.read_csv(jobs[infl_job].output_path)
+        assert "inflation_yoy" in df_infl.columns
 
         ar1_job = submit_recipe_run(
             runner=runner,

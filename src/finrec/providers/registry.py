@@ -46,6 +46,15 @@ def _try_register_real_providers(reg: ProviderRegistry) -> None:
     except Exception:
         pass
 
+    # Market: Financial Modeling Prep (FMP) via requests
+    try:
+        if optional_import("requests") is not None:
+            from finrec.providers.market.fmp import FMPProvider
+
+            reg.register(FMPProvider())
+    except Exception:
+        pass
+
     # Macro: FRED via pandas-datareader
     try:
         if optional_import("pandas_datareader.data") is not None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -236,6 +237,20 @@ def _parse_cols(raw: str) -> list[str]:
     return [c.strip() for c in (raw or "").split(",") if c.strip()]
 
 
+def _preferred_market_provider(market_provider_ids: list[str]) -> str | None:
+    """
+    Pick a sensible default market provider.
+
+    Prefer FMP when an API key is set (more reliable than Yahoo rate limits).
+    """
+    ids = [str(x) for x in (market_provider_ids or [])]
+    if "fmp" in ids and (os.getenv("FINREC_FMP_API_KEY") or "").strip():
+        return "fmp"
+    if "yfinance" in ids:
+        return "yfinance"
+    return ids[0] if ids else None
+
+
 def _filter_df_by_date_range(df: pd.DataFrame, *, x_col: str, start_date: date, end_date: date) -> pd.DataFrame:
     if x_col not in df.columns:
         return df
@@ -453,6 +468,10 @@ def _wide_from_macro_artifacts(
     """
     Convert multiple per-series macro artifacts into a wide dataframe:
       date | CPIAUCSL | UNRATE | ...
+
+    Series with different frequencies (e.g., weekly ICSA, monthly PAYEMS) produce NaNs
+    after merge. We forward-fill each value column so the combined chart renders
+    continuous lines instead of fragmented segments.
     """
     out: pd.DataFrame | None = None
     for sid, df in (dfs_by_series or {}).items():
@@ -471,6 +490,10 @@ def _wide_from_macro_artifacts(
     if out is None:
         return pd.DataFrame()
     out = out.sort_values(date_col).reset_index(drop=True)
+    # Forward-fill value columns so mixed-frequency series plot as continuous lines
+    value_cols = [c for c in out.columns if c != date_col]
+    for c in value_cols:
+        out[c] = out[c].ffill()
     return out
 
 
@@ -507,9 +530,7 @@ def _dataset_builder_ui(
         "fred" if any(pid == "fred" for pid in macro_provider_options) else (macro_provider_options[0] if macro_provider_options else None)
     )
     default_market_provider = (
-        "yfinance"
-        if any(pid == "yfinance" for pid in market_provider_options)
-        else (market_provider_options[0] if market_provider_options else None)
+        _preferred_market_provider(market_provider_options)
     )
 
     with st.expander("Build / merge a dataset", expanded=False):
@@ -556,12 +577,21 @@ def _dataset_builder_ui(
                 default=tickers,
                 help="Pick which tickers to include in the dataset builder run.",
             )
-            market_interval = st.selectbox(
-                "Market interval (yfinance)",
-                ["1d", "1h", "30m", "15m", "5m"],
-                index=0,
-                help="Higher-frequency intervals can be slower and may be limited by the provider.",
-            )
+            if market_provider_id == "fmp":
+                st.caption("FMP provider currently supports daily bars only (interval=1d).")
+                if selected_tickers:
+                    st.warning(
+                        "**FMP free API:** Does not cover all tickers. Unsupported symbols fall back to Yahoo Finance "
+                        "(easily rate-limited). Avoid pulling large datasets quickly for symbols outside your FMP plan."
+                    )
+                market_interval = "1d"
+            else:
+                market_interval = st.selectbox(
+                    "Market interval",
+                    ["1d", "1h", "30m", "15m", "5m"],
+                    index=0,
+                    help="Higher-frequency intervals can be slower and may be limited by the provider.",
+                )
             market_value_col = st.selectbox(
                 "Market value column (for merge)",
                 ["close", "open", "high", "low", "volume"],
@@ -584,7 +614,9 @@ def _dataset_builder_ui(
         fetch_btn = st.button("Fetch selected series for dataset")
         if fetch_btn:
             if macro_provider_id.startswith("(no ") or market_provider_id.startswith("(no "):
-                st.error("Install the required packages (pandas-datareader for FRED, yfinance for market) and restart the app.")
+                st.error(
+                    "Install the required packages (pandas-datareader for FRED, and a market provider via `.[market]`) and restart the app."
+                )
             else:
                 items: dict[str, dict] = {}
 
@@ -739,6 +771,12 @@ def _render_query_and_submit(
             help="Add tickers not in the list (e.g. TSCO, VOD).",
         )
         tickers = [o.id for o in selected_fin]
+        if tickers:
+            st.warning(
+                "**Stock tickers:** The FMP free API does not cover all tickers. Unsupported symbols fall back to "
+                "Yahoo Finance, which is easily rate-limited. If a symbol is not under your FMP subscription, "
+                "avoid pulling large datasets quickly."
+            )
         interval = st.selectbox(
             "Interval",
             ["1d", "1h", "30m", "15m", "5m"],
@@ -871,7 +909,7 @@ def _render_query_and_submit(
         x_cols = st.text_input(
             "Model x_cols (OLS, comma-separated)",
             value="",
-            help="For OLS: comma-separated list of regressor columns. Leave blank for intercept-only.",
+            help="For OLS: comma-separated list of regressor columns (required). Example: UNRATE, FEDFUNDS",
         )
         shock_col = st.text_input(
             "LP-IRF shock_col",
@@ -983,7 +1021,13 @@ def _render_query_and_submit(
             help="Runs a local model to score article titles/snippets and aggregates daily means.",
         )
 
-    run_btn = st.button("Run", type="primary")
+    run_col, refresh_col = st.columns([1, 1])
+    with run_col:
+        run_btn = st.button("Run", type="primary")
+    with refresh_col:
+        refresh_btn = st.button("Refresh results", key="refresh_results_bottom")
+        if refresh_btn:
+            st.rerun()
 
     if run_btn:
         if mode == "Finance" and not tickers:
@@ -1007,13 +1051,9 @@ def _render_query_and_submit(
                     "n": 252,
                 }
                 market_providers = [p.meta.id for p in reg.list("market")]
-                provider_id = (
-                    "yfinance"
-                    if "yfinance" in market_providers
-                    else (market_providers[0] if market_providers else None)
-                )
+                provider_id = _preferred_market_provider(market_providers)
                 if not provider_id:
-                    st.error("No market provider available. Install yfinance.")
+                    st.error('No market provider available. Install with: pip install -e ".[market]"')
                     st.stop()
                 job_id = submit_provider_fetch(
                     runner=runner, kind="market", provider_id=provider_id, request=req
@@ -1205,6 +1245,15 @@ def _render_results(
             if jid:
                 ids.append(str(jid))
         for _k, jid in (latest.get("indicator_jobs") or {}).items():
+            if jid:
+                ids.append(str(jid))
+        # Macro transform jobs (shape: dict[key] -> dict{job_id,...} OR dict[key]->job_id)
+        for _k, spec in (latest.get("macro_transform_jobs") or {}).items():
+            jid = None
+            if isinstance(spec, dict):
+                jid = spec.get("job_id")
+            else:
+                jid = spec
             if jid:
                 ids.append(str(jid))
         for _k, jid in (latest.get("model_jobs") or {}).items():
@@ -1695,6 +1744,241 @@ def _render_results(
                             )
                         st.dataframe(df_sid.tail(100), use_container_width=True)
 
+        with st.expander("Macro transforms", expanded=False):
+            st.caption("Run macro cleaning/transforms from the main UI (no legacy pages needed).")
+
+            macro_transform_jobs: dict = latest.get("macro_transform_jobs") or {}
+            if "macro_transform_jobs" not in latest:
+                latest["macro_transform_jobs"] = macro_transform_jobs
+
+            # --------------------
+            # Single-series transforms (long-form FRED artifact: date, series_id, value)
+            # --------------------
+            st.markdown("#### Single-series transforms")
+            ready_series: list[tuple[str, str, str]] = []
+            for sid, jid in (macro_jobs or {}).items():
+                j = jobs_by_id.get(jid)
+                if j and j.status == "SUCCEEDED" and j.output_path:
+                    ready_series.append((sid, str(jid), str(j.output_path)))
+            ready_series = sorted(ready_series, key=lambda x: x[0])
+
+            if not ready_series:
+                st.caption("No completed macro artifacts yet. Fetch at least one series first.")
+            else:
+                sid_options = [sid for (sid, _jid, _p) in ready_series]
+                sid_to_job = {sid: jid for (sid, jid, _p) in ready_series}
+                sid_to_path = {sid: p for (sid, _jid, p) in ready_series}
+
+                single_sid = st.selectbox(
+                    "Input series (completed)",
+                    options=sid_options,
+                    index=0,
+                    key="macro_transform_single_sid",
+                )
+                single_recipe = st.selectbox(
+                    "Transform",
+                    options=["inflation_yoy", "inflation_mom_ann", "growth_qoq_ann"],
+                    index=0,
+                    key="macro_transform_single_recipe",
+                    help="These transforms run on a single long-form series with a 'value' column.",
+                )
+                default_out = (
+                    "inflation_yoy"
+                    if single_recipe == "inflation_yoy"
+                    else ("inflation_mom_ann" if single_recipe == "inflation_mom_ann" else "growth_qoq_ann")
+                )
+                single_out_col = st.text_input(
+                    "Output column",
+                    value=default_out,
+                    key="macro_transform_single_out_col",
+                )
+
+                run_single = st.button("Run single-series transform", key="macro_transform_run_single")
+                if run_single:
+                    in_jid = sid_to_job.get(single_sid)
+                    in_path = sid_to_path.get(single_sid)
+                    if not in_jid or not in_path:
+                        st.error("Selected input series is not ready yet.")
+                    else:
+                        spec_key = f"single|{single_sid}|{single_recipe}|{single_out_col}"
+                        if spec_key in macro_transform_jobs:
+                            st.info("That transform job has already been submitted in this run.")
+                        else:
+                            params = {"date_col": "date", "value_col": "value", "out_col": single_out_col}
+                            jid_out = submit_recipe_run(
+                                runner=runner,
+                                input_job_id=in_jid,
+                                input_path=in_path,
+                                recipe_id=single_recipe,
+                                params=params,
+                            )
+                            macro_transform_jobs[spec_key] = {
+                                "job_id": jid_out,
+                                "label": f"{single_recipe} on {single_sid}",
+                                "out_col": single_out_col,
+                            }
+                            latest["macro_transform_jobs"] = macro_transform_jobs
+                            st.session_state.latest_run = latest
+                            st.success(f"Submitted transform job: {jid_out}")
+
+            st.divider()
+
+            # --------------------
+            # Merged-dataset transforms (wide dataset: date + many columns)
+            # --------------------
+            st.markdown("#### Merged-dataset transforms")
+            active_dataset_path = st.session_state.get("active_dataset_path")
+            if not active_dataset_path:
+                st.info("No active merged dataset. Build one in Dataset Builder to run spreads/real-rate on wide data.")
+            else:
+                try:
+                    cols = [str(c) for c in pd.read_csv(active_dataset_path, nrows=5).columns]
+                except Exception as e:
+                    cols = []
+                    st.warning(f"Could not read merged dataset columns: {e}")
+
+                wide_cols = [c for c in cols if c != "date"]
+                if not wide_cols:
+                    st.caption("Merged dataset has no usable columns beyond 'date'.")
+                else:
+                    merged_recipe = st.selectbox(
+                        "Transform (merged dataset)",
+                        options=["spread", "real_rate"],
+                        index=0,
+                        key="macro_transform_merged_recipe",
+                        help="These transforms run on the active merged dataset (wide columns).",
+                    )
+
+                    merged_params: dict = {"date_col": "date"}
+                    merged_out_col = ""
+
+                    if merged_recipe == "spread":
+                        a = st.selectbox(
+                            "series_a (A - B)",
+                            options=wide_cols,
+                            index=0,
+                            key="macro_transform_spread_a",
+                        )
+                        b = st.selectbox(
+                            "series_b (A - B)",
+                            options=wide_cols,
+                            index=(1 if len(wide_cols) > 1 else 0),
+                            key="macro_transform_spread_b",
+                        )
+                        merged_out_col = st.text_input(
+                            "Output column (optional)",
+                            value="",
+                            key="macro_transform_spread_out",
+                            help="Leave blank to use default: series_a_minus_series_b",
+                        )
+                        merged_params.update({"series_a": a, "series_b": b})
+                        if merged_out_col.strip():
+                            merged_params["out_col"] = merged_out_col.strip()
+                    else:  # real_rate
+                        nominal = st.selectbox(
+                            "nominal_col",
+                            options=wide_cols,
+                            index=0,
+                            key="macro_transform_real_nominal",
+                            help="Example: FEDFUNDS or DGS10",
+                        )
+                        infl = st.selectbox(
+                            "inflation_col",
+                            options=wide_cols,
+                            index=(wide_cols.index("inflation_yoy") if "inflation_yoy" in wide_cols else 0),
+                            key="macro_transform_real_infl",
+                            help="Example: inflation_yoy column from CPI transform",
+                        )
+                        merged_out_col = st.text_input(
+                            "Output column",
+                            value="real_rate",
+                            key="macro_transform_real_out",
+                        )
+                        merged_params.update(
+                            {"nominal_col": nominal, "inflation_col": infl, "out_col": merged_out_col.strip() or "real_rate"}
+                        )
+
+                    run_merged = st.button("Run merged-dataset transform", key="macro_transform_run_merged")
+                    if run_merged:
+                        input_job_id = st.session_state.get("dataset_builder_merge_job_id") or "active_dataset"
+                        spec_key = f"merged|{merged_recipe}|{merged_params}"
+                        if spec_key in macro_transform_jobs:
+                            st.info("That merged-dataset transform job has already been submitted in this run.")
+                        else:
+                            jid_out = submit_recipe_run(
+                                runner=runner,
+                                input_job_id=str(input_job_id),
+                                input_path=str(active_dataset_path),
+                                recipe_id=merged_recipe,
+                                params=merged_params,
+                            )
+                            label = f"{merged_recipe} on merged dataset"
+                            if merged_recipe == "spread":
+                                label = f"spread ({merged_params.get('series_a')} - {merged_params.get('series_b')})"
+                            macro_transform_jobs[spec_key] = {
+                                "job_id": jid_out,
+                                "label": label,
+                                "out_col": merged_params.get("out_col", merged_out_col).strip() if isinstance(merged_params.get("out_col", ""), str) else "",
+                            }
+                            latest["macro_transform_jobs"] = macro_transform_jobs
+                            st.session_state.latest_run = latest
+                            st.success(f"Submitted transform job: {jid_out}")
+
+            # --------------------
+            # Outputs
+            # --------------------
+            if macro_transform_jobs:
+                st.markdown("#### Transform job outputs")
+                # Compact status view
+                status_map: dict[str, str] = {}
+                for k, spec in macro_transform_jobs.items():
+                    if isinstance(spec, dict) and spec.get("job_id"):
+                        label = str(spec.get("label") or k)
+                        status_map[label] = _status_badge(str(spec["job_id"]))
+                if status_map:
+                    st.write(status_map)
+
+                for k, spec in macro_transform_jobs.items():
+                    if not isinstance(spec, dict) or not spec.get("job_id"):
+                        continue
+                    jid = str(spec["job_id"])
+                    label = str(spec.get("label") or k)
+                    out_col = str(spec.get("out_col") or "").strip()
+                    _show_job_error(jid)
+
+                    j = jobs_by_id.get(jid)
+                    with st.expander(f"{label} ({jid})", expanded=False):
+                        if j and j.output_path:
+                            st.write(f"Artifact: `{j.output_path}`")
+                            try:
+                                df_out = _artifact_df(j.output_path)
+                                _download_df(df_out, label="Download transform CSV", file_name=f"{jid}.csv")
+                                if "date" in df_out.columns:
+                                    cols_to_plot: list[str] = []
+                                    if out_col and out_col in df_out.columns:
+                                        cols_to_plot.append(out_col)
+                                    # Show original value if present (single-series case)
+                                    if "value" in df_out.columns and "value" not in cols_to_plot:
+                                        cols_to_plot = ["value"] + cols_to_plot
+                                    # Fallback: first few non-date columns
+                                    if not cols_to_plot:
+                                        cols_to_plot = [c for c in df_out.columns if c != "date"][:3]
+                                    _plot_df(
+                                        df_out,
+                                        x_col="date",
+                                        left_cols=cols_to_plot,
+                                        title=label,
+                                        height=250,
+                                        recession_intervals=recession_intervals,
+                                        start_date=start_date,
+                                        end_date=end_date,
+                                    )
+                                st.dataframe(df_out.tail(200), use_container_width=True)
+                            except Exception as e:
+                                st.warning(f"Could not load transform artifact: {e}")
+                        else:
+                            st.caption(f"Status: {_status_badge(jid)}")
+
         with st.expander("Model jobs", expanded=False):
             # Pick a model input series that is actually ready (fallback: first selected)
             series_order = latest.get("series_ids") or []
@@ -1744,7 +2028,11 @@ def _render_results(
                         if mid == "ar1":
                             params = {"y_col": "value"}
                         elif mid == "ols":
-                            params = {"y_col": latest.get("y_col", "value"), "x_cols": latest.get("x_cols", ""), "add_constant": True}
+                            x_cols_raw = str(latest.get("x_cols", "")).strip()
+                            if not x_cols_raw:
+                                st.warning("Skipping OLS: x_cols is required (comma-separated). Example: UNRATE, FEDFUNDS")
+                                continue
+                            params = {"y_col": latest.get("y_col", "value"), "x_cols": x_cols_raw, "add_constant": True}
                         elif mid == "lp_irf":
                             if latest.get("lp_shock_mode") == "use Δy (first difference) as shock":
                                 df_tmp = df_macro.copy()  # type: ignore[union-attr]

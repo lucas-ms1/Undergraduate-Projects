@@ -29,7 +29,15 @@ streamlit run streamlit_app.py
 Install feature-specific dependencies as needed:
 
 - Forecasting (ETS/ARIMA + ML lags): `pip install -e ".[forecast]"`
-- Market data (yfinance): `pip install -e ".[market]"`
+- Market data (FMP via requests, and/or yfinance): `pip install -e ".[market]"`
 - Macro data (FRED via pandas-datareader): `pip install -e ".[macro]"`
 - News (GDELT via requests): `pip install -e ".[news]"`
 - Econometrics (statsmodels): `pip install -e ".[econ]"`
+
+## FMP API key
+
+If you use the Financial Modeling Prep market provider (`provider_id="fmp"`), set your key in `.env`:
+
+```bash
+FINREC_FMP_API_KEY=...
+```
