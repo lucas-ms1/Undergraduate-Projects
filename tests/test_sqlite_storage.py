@@ -15,7 +15,7 @@ def test_sqlite_storage_job_lifecycle(tmp_path: Path):
         job_id,
         kind="provider_fetch",
         provider_kind="market",
-        provider_id="yfinance_stub",
+        provider_id="yfinance",
         request={"symbol": "AAPL"},
     )
 

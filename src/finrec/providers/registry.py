@@ -5,9 +5,6 @@ from typing import Dict, List
 
 from finrec.providers.base import Provider, ProviderKind
 from finrec.providers.utils.optional import optional_import
-from finrec.providers.market.yfinance_stub import YFinanceStubProvider
-from finrec.providers.macro.fred_stub import FREDStubProvider
-from finrec.providers.news.gdelt_stub import GDELTStubProvider
 
 
 @dataclass
@@ -72,12 +69,6 @@ def get_registry() -> ProviderRegistry:
     global _REGISTRY
     if _REGISTRY is None:
         reg = ProviderRegistry(_providers={})
-        # Register stub providers (always available)
-        reg.register(YFinanceStubProvider())
-        reg.register(FREDStubProvider())
-        reg.register(GDELTStubProvider())
-
-        # Register real providers if optional deps exist
         _try_register_real_providers(reg)
 
         _REGISTRY = reg

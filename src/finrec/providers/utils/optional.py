@@ -22,9 +22,14 @@ def require_optional(module_name: str, extra_hint: str) -> ModuleType:
     """
     mod = optional_import(module_name)
     if mod is None:
+        extras = ["dev"]
+        hint = (extra_hint or "").strip()
+        if hint and hint not in extras:
+            extras.append(hint)
+        extras_str = ",".join(extras)
         raise ImportError(
             f"Optional dependency '{module_name}' is not installed. "
-            f'Install with: pip install -e ".[dev,{extra_hint}]"'
+            f'Install with: pip install -e ".[{extras_str}]"'
         )
     return mod
 

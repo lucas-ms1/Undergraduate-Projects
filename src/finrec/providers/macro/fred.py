@@ -26,11 +26,19 @@ class FREDProvider(Provider):
         start_date = request.get("start_date")
         end_date = request.get("end_date")
 
+        today = datetime.now(timezone.utc).date()
         if start_date and end_date:
             start = date.fromisoformat(str(start_date))
             end = date.fromisoformat(str(end_date))
             if end < start:
                 raise ValueError(f"end_date ({end}) must be >= start_date ({start})")
+            # FRED has no future data; clamp to today so we get latest available
+            if end > today:
+                end = today
+                ctx.log("INFO", f"[{self.meta.id}] end_date clamped to today ({today})")
+            if start > today:
+                start = today
+                ctx.log("INFO", f"[{self.meta.id}] start_date clamped to today ({today})")
             n_hint = None
         else:
             # Fallback mode: buffered window then tail(n)

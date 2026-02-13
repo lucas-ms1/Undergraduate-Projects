@@ -23,3 +23,13 @@ streamlit run streamlit_app.py
 
 * This is intentionally minimal: providers are stubs that generate synthetic data.
 * Later steps can swap the job runner to a true background worker process and implement real providers.
+
+## Optional extras
+
+Install feature-specific dependencies as needed:
+
+- Forecasting (ETS/ARIMA + ML lags): `pip install -e ".[forecast]"`
+- Market data (yfinance): `pip install -e ".[market]"`
+- Macro data (FRED via pandas-datareader): `pip install -e ".[macro]"`
+- News (GDELT via requests): `pip install -e ".[news]"`
+- Econometrics (statsmodels): `pip install -e ".[econ]"`

@@ -40,6 +40,22 @@ def _normalize_gdelt_query(q: str) -> str:
     return q
 
 
+def _append_sourcelang_filter(query: str, languages: list[str]) -> str:
+    """
+    Append one or more GDELT language filters to an existing query.
+
+    GDELT doc API supports `sourcelang:<language>` (e.g., sourcelang:english).
+    Multiple languages are OR'd: (sourcelang:english OR sourcelang:spanish)
+    """
+    langs = [str(x).strip().lower() for x in (languages or []) if str(x).strip()]
+    if not langs:
+        return query
+    if len(langs) == 1:
+        return f"{query} sourcelang:{langs[0]}"
+    group = "(" + " OR ".join([f"sourcelang:{l}" for l in langs]) + ")"
+    return f"{query} {group}"
+
+
 def _throttle_gdelt(min_interval_s: float = 5.0) -> None:
     """
     GDELT explicitly asks for <= 1 request per 5 seconds (429 otherwise).
@@ -68,6 +84,17 @@ class GDELTProvider(Provider):
         query = _normalize_gdelt_query(str(request.get("query", "inflation")))
         if not query:
             raise ValueError("query must be a non-empty string.")
+
+        # Optional language filter(s) (GDELT `sourcelang:`).
+        language = (request.get("language") or "").strip()
+        languages = request.get("languages") or []
+        langs: list[str] = []
+        if isinstance(languages, list):
+            langs = [str(x).strip() for x in languages if str(x).strip()]
+        if language:
+            langs = [language]
+        if langs:
+            query = _append_sourcelang_filter(query, langs)
 
         start_date = request.get("start_date")
         end_date = request.get("end_date")
@@ -145,7 +172,7 @@ class GDELTProvider(Provider):
         articles = data.get("articles") or []
         if not articles:
             ctx.log("WARNING", f"[{self.meta.id}] No articles returned.")
-            return pd.DataFrame(columns=["ts", "date", "query", "title", "snippet", "source", "url"])
+            return pd.DataFrame(columns=["ts", "date", "query", "language", "title", "snippet", "source", "url"])
 
         rows: list[dict[str, Any]] = []
         for a in articles:
@@ -163,12 +190,14 @@ class GDELTProvider(Provider):
             snippet = a.get("summary") or a.get("snippet") or ""
             src = a.get("sourceCountry") or a.get("sourceCollection") or a.get("domain") or ""
             link = a.get("url") or ""
+            lang = (a.get("language") or a.get("sourceLang") or a.get("sourcelang") or "").strip().lower()
 
             rows.append(
                 {
                     "ts": ts.isoformat(timespec="seconds") if isinstance(ts, pd.Timestamp) and not pd.isna(ts) else "",
                     "date": ts.date().isoformat() if isinstance(ts, pd.Timestamp) and not pd.isna(ts) else "",
                     "query": query,
+                    "language": lang,
                     "title": title,
                     "snippet": snippet,
                     "source": src,

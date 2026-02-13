@@ -1,3 +1,4 @@
+"""E2E smoke test using real providers. Requires network and optional deps: yfinance, requests, pandas-datareader."""
 from __future__ import annotations
 
 import time
@@ -26,13 +27,13 @@ def main() -> None:
         market_job = submit_provider_fetch(
             runner=runner,
             kind="market",
-            provider_id="yfinance_stub",
+            provider_id="yfinance",
             request={"symbol": "AAPL", "start_date": "2020-01-01", "end_date": "2020-02-01", "n": 30},
         )
         news_job = submit_provider_fetch(
             runner=runner,
             kind="news",
-            provider_id="gdelt_stub",
+            provider_id="gdelt",
             request={"query": "AAPL", "start_date": "2020-01-01", "end_date": "2020-02-01", "n": 5},
         )
 
@@ -79,7 +80,7 @@ def main() -> None:
         fred_job = submit_provider_fetch(
             runner=runner,
             kind="macro",
-            provider_id="fred_stub",
+            provider_id="fred",
             request={"series_id": "CPIAUCSL", "start_date": "2018-01-01", "end_date": "2020-01-01", "n": 24},
         )
 

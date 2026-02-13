@@ -2,12 +2,36 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+import threading
 import time
 
 import pandas as pd
 
 from finrec.providers.base import Provider, ProviderMeta
 from finrec.providers.utils.optional import require_optional
+
+
+_YF_LOCK = threading.Lock()
+_YF_LAST_REQUEST_AT = 0.0
+
+
+def _throttle_yfinance(min_interval_s: float = 3.0) -> None:
+    """
+    Best-effort global throttle for yfinance/Yahoo requests.
+
+    yfinance can be rate-limited unpredictably; limiting burstiness (especially with concurrent jobs)
+    materially reduces YFRateLimitError frequency.
+    """
+    global _YF_LAST_REQUEST_AT
+    min_interval_s = float(min_interval_s)
+    if min_interval_s <= 0:
+        return
+    with _YF_LOCK:
+        now = time.time()
+        wait_s = (_YF_LAST_REQUEST_AT + min_interval_s) - now
+        if wait_s > 0:
+            time.sleep(wait_s)
+        _YF_LAST_REQUEST_AT = time.time()
 
 
 @dataclass
@@ -62,6 +86,7 @@ class YFinanceProvider(Provider):
         last_err: Exception | None = None
         for attempt in range(4):
             try:
+                _throttle_yfinance(float(request.get("throttle_s", 3.0)))
                 hist = ticker.history(
                     start=start,
                     end=end + timedelta(days=1),
@@ -72,7 +97,8 @@ class YFinanceProvider(Provider):
                 break
             except YFRateLimitError as e:  # type: ignore[misc]
                 last_err = e
-                wait_s = [0.0, 2.0, 5.0, 12.0][attempt]
+                # When Yahoo throttles, short backoffs often aren't enough.
+                wait_s = [3.0, 10.0, 30.0, 60.0][attempt]
                 ctx.log("WARNING", f"[{self.meta.id}] Rate-limited (attempt={attempt+1}/4). Sleeping {wait_s}s.")
                 time.sleep(wait_s)
             except Exception as e:
@@ -81,7 +107,7 @@ class YFinanceProvider(Provider):
 
         if last_err is not None:
             raise ValueError(
-                "yfinance request failed. If you see rate limiting, wait a bit or select the stub provider."
+                "yfinance request failed. If you see rate limiting, wait a bit and try again later."
             ) from last_err
 
         if hist is None or hist.empty:
