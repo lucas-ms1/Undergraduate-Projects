@@ -1,6 +1,6 @@
 # Undergraduate Projects
 
-This repository consolidates undergraduate macroeconomics coursework projects.
+This repository consolidates undergraduate coursework and competition projects.
 
 ## Projects
 
@@ -11,3 +11,4 @@ This repository consolidates undergraduate macroeconomics coursework projects.
 - `Econ - Macro - Capstone Engine`
 - `Econ - Macro - Model Solver`
 - `Econ - Macro - FinRec Data Suite`
+- `ICM-MCM - Competition 2026`
