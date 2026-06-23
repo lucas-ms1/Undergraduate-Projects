@@ -4,10 +4,10 @@ This repository consolidates undergraduate macroeconomics coursework projects.
 
 ## Projects
 
-- `Assignment #2`
-- `ECO 317 Project 1`
-- `ECO 317 Project 2`
-- `ECO 317 Project 3`
-- `ECO 317 PROJECT 4`
-- `ECO-317-Project-2---Model-Solver`
-- `Macro-Project-1-Data-Suite`
+- `Econ - Macro - Assignment 2`
+- `Econ - Macro - Data Suite Report`
+- `Econ - Macro - VFI Dashboard`
+- `Econ - Macro - Fiscal Policy DSGE`
+- `Econ - Macro - Capstone Engine`
+- `Econ - Macro - Model Solver`
+- `Econ - Macro - FinRec Data Suite`
