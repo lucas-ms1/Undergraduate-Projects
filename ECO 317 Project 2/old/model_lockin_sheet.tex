@@ -1,0 +1,611 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.85in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{enumitem}
+\usepackage{array,booktabs,tabularx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\definecolor{myblue}{RGB}{20,55,90}
+\definecolor{mygray}{RGB}{245,245,245}
+\definecolor{mygreen}{RGB}{20,110,70}
+\definecolor{myorange}{RGB}{200,120,20}
+
+\titleformat{\section}{\large\bfseries\color{myblue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{myblue}}{\thesubsection.}{0.5em}{}
+
+\newtcolorbox{goalbox}{
+    colback=blue!3,
+    colframe=myblue,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{warningbox}{
+    colback=red!2,
+    colframe=red!55!black,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{notebox}{
+    colback=yellow!5,
+    colframe=myorange,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\setlist[itemize]{nosep,leftmargin=1.5em}
+\setlist[enumerate]{nosep,leftmargin=1.5em}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Model Lock-In Sheet}}\\[0.4em]
+    {\large ECO 317 -- Assignment \#2}\\[0.4em]
+    \rule{0.9\linewidth}{0.5pt}
+\end{center}
+
+\begin{goalbox}
+\textbf{Purpose.} Lock every equation, variable name, timing convention, and solver output \emph{before} any code is written. This sheet is the single source of truth that every teammate and every AI prompt should reference.
+\end{goalbox}
+
+\section{How to use this sheet}
+
+\begin{enumerate}
+    \item Open the course notes alongside this document.
+    \item Confirm that each equation below matches the accessible lecture PDFs and the assignment brief.
+    \item Any entry explicitly labeled ``not numerically specified in accessible notes'' should be treated as a coding calibration choice, not as a lecture fact.
+    \item During coding and demo prep, reference this sheet instead of re-deriving from memory.
+    \item If any equation changes after review, update this sheet first, then update the code.
+\end{enumerate}
+
+\section{Shared requirements across all models}
+
+These apply identically to Models 1, 2, and 3.
+
+\begin{tabularx}{\linewidth}{@{}p{2.6cm}X@{}}
+\toprule
+\textbf{Requirement} & \textbf{Detail} \\
+\midrule
+Horizon & Infinite \\
+Solution method & Value Function Iteration (VFI) \\
+Shock process & Two-state Markov chain per model \\
+Grid density & Fine grid, approximately 200--400 points \\
+Convergence & $\max|V_{n+1}-V_n|<\varepsilon$, e.g.\ $\varepsilon=10^{-6}$ \\
+Simulation & At least 100 periods \\
+Moments & Mean, variance, lag-1 autocorrelation, correlation with income/output \\
+Forecasting & Exact non-linear forecast from solved policy functions; user-selected future shocks \\
+Dashboard & Streamlit, sidebar sliders, dark/navy styling, white chart cards, Garamond-style font \\
+Summaries & Deterministic f-string text generated from live simulation moments \\
+\bottomrule
+\end{tabularx}
+
+\bigskip
+
+\section{Model 1: Stochastic consumption-savings}
+
+\subsection{Purpose}
+Household chooses how much to save in a risk-free asset when income randomly switches between a bad and a good state.
+
+\subsection{Bellman equation}
+Assignment-required infinite-horizon Bellman translation of the lecture's two-period expected-utility problem:
+\[
+V(a_t,y_t) = \max_{a_{t+1}} \left\{ u(c_t) + \beta \sum_{y_{t+1}} P(y_{t+1}|y_t)\,V(a_{t+1},y_{t+1}) \right\}
+\]
+
+\begin{notebox}
+Accessible lecture notes present the same economics in two-period bond notation:
+\[
+\max_{C_t,C_{t+1}} U(C_t) + \beta E_t U(C_{t+1})
+\]
+subject to
+\[
+C_t + B_t = Y_t, \qquad C_{t+1} = E(Y_{t+1}) + (1+r_t)B_t.
+\]
+Use the Bellman form above for coding, but keep the lecture notation in mind when naming variables.
+\end{notebox}
+
+\subsection{Budget constraint}
+\[
+c_t + a_{t+1} = y_t + (1+r_t)\,a_t, \qquad c_t > 0
+\]
+
+\begin{notebox}
+Lecture notes write saving through a non-state-contingent bond $B_t$ with gross return $(1+r_t)$. In the recursive implementation, the asset state $a_t$ is the same savings vehicle written in grid form.
+\end{notebox}
+
+\subsection{Utility function}
+CES / CRRA form stated in the assignment:
+\[
+u(c) =
+\begin{cases}
+\dfrac{c^{1-\sigma}-1}{1-\sigma}, & \sigma \neq 1 \\[0.5em]
+\ln(c), & \sigma = 1
+\end{cases}
+\]
+
+\subsection{State, control, and shock identification}
+
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+State variables & Current assets $a$ and current income shock $y$ \\
+Control variable & Next-period assets $a_{t+1}$ \\
+Residual variable & Consumption $c_t$ (determined from the budget constraint) \\
+Shock & Exogenous income $y \in \{y_L, y_H\}$ \\
+Shock interpretation & Low versus high endowment \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Transition matrix}
+
+\[
+P = \begin{pmatrix} \pi_{LL} & \pi_{LH} \\ \pi_{HL} & \pi_{HH} \end{pmatrix}
+\qquad\text{where row } i \text{ sums to } 1.
+\]
+
+Assignment-required two-state Markov discretization of the lecture's low/high income uncertainty:
+\[
+P = \begin{pmatrix} 0.9 & 0.1 \\ 0.1 & 0.9 \end{pmatrix}
+\]
+
+\begin{notebox}
+Lecture notes confirm a two-state uncertainty environment with income outcomes $Y_L$ and $Y_H$ and probabilities $p_L$ and $p_H = 1-p_L$. They do \emph{not} provide a recursive 2-by-2 Markov matrix, so the matrix above is the project's implementation discretization of that lecture setup and can be adjusted by sliders.
+\end{notebox}
+
+\subsection{Timing convention}
+\begin{itemize}
+    \item Period $t$: agent enters with assets $a_t$ and observes income $y_t$.
+    \item Agent chooses $a_{t+1}$.
+    \item Consumption is determined residually: $c_t = (1+r_t)a_t + y_t - a_{t+1}$.
+\end{itemize}
+
+\subsection{Feasibility conditions}
+\begin{itemize}
+    \item $c_t > 0$ always.
+    \item $a_{t+1} \in [a_{\min}, a_{\max}]$.
+    \item If a borrowing constraint exists: $a_{t+1} \geq a_{\min}$.
+\end{itemize}
+
+\subsection{Parameters}
+
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Coding default / note status} \\
+\midrule
+$\beta$ & Discount factor & 0.95 \\
+$\sigma$ & Risk aversion (CRRA coefficient) & 2.0 \\
+$r$ & Risk-free interest rate & 0.03 \\
+$y_L$ & Low income state & Implementation calibration chosen to represent the lecture's $Y_L$ state \\
+$y_H$ & High income state & Implementation calibration chosen to represent the lecture's $Y_H$ state \\
+$a_{\min}$ & Lower bound of asset grid & 0.0 \\
+$a_{\max}$ & Upper bound of asset grid & 20.0 \\
+$n_a$ & Number of asset grid points & 200--400 \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{Calibration policy for Model 1.} Treat $Y_L$ and $Y_H$ as lecture-confirmed symbols, the infinite-horizon Bellman form as an assignment-required translation, and the numerical choices for $(y_L,y_H,P)$ as implementation calibrations unless another lecture file provides explicit numbers.
+\end{notebox}
+
+\subsection{Solver must return}
+\begin{itemize}
+    \item Value function $V(a,y)$: array of shape \texttt{(n\_a, 2)}.
+    \item Policy indices: array of shape \texttt{(n\_a, 2)}.
+    \item Savings policy $a_{t+1}(a_t,y_t)$: array of shape \texttt{(n\_a, 2)}.
+    \item Consumption policy $c(a,y)$: array of shape \texttt{(n\_a, 2)}.
+    \item Convergence diagnostics: iterations, final error, converged flag.
+    \item Grid: the asset grid array.
+\end{itemize}
+
+\subsection{Simulate, forecast, and plot}
+\begin{itemize}
+    \item Simulate: $a_t$, $c_t$, $y_t$ for $T \geq 100$ periods.
+    \item Forecast: user picks future shocks; apply policy to generate deterministic path.
+    \item Plot: consumption path, asset path, income path, policy functions $a_{t+1}(a_t,y_t)$ and $c(a_t,y_t)$.
+    \item Moments: mean, variance of $c_t$ and $a_t$; autocorrelation of $c_t$; correlation of $c_t$ with $y_t$.
+\end{itemize}
+
+\subsection{Course-note fidelity check}
+
+\begin{warningbox}
+Resolved from the accessible lecture notes:
+\begin{itemize}
+    \item The notes use subscripts such as $C_t$, $Y_t$, and $B_t$, plus the gross return $(1+r_t)$.
+    \item The notes describe an endowment/income household that saves through a non-state-contingent bond.
+    \item The uncertainty discussion gives two income outcomes $Y_L$ and $Y_H$ and expected utility $E_t U(C_{t+1})$.
+    \item The accessible notes do not state a borrowing constraint or numerical calibration for $y_L$, $y_H$, or the transition matrix.
+\end{itemize}
+\end{warningbox}
+
+\bigskip
+\section{Model 2: Stochastic Robinson Crusoe economy}
+
+\subsection{Purpose}
+Household accumulates productive capital instead of a risk-free asset. Output depends on capital and a stochastic TFP shock.
+
+\subsection{Bellman equation}
+Assignment-required infinite-horizon Bellman translation of the lecture's Robinson Crusoe timing:
+\[
+V(k_t,z_t) = \max_{k_{t+1}} \left\{ u(c_t) + \beta \sum_{z_{t+1}} P(z_{t+1}|z_t)\,V(k_{t+1},z_{t+1}) \right\}
+\]
+
+\begin{warningbox}
+\textbf{Locked-in timing.} The lecture notes explicitly say the consumer moves resources forward by choosing $K_{t+1}$ and that tomorrow's output is defined by
+\[
+Y_{t+1} = F(K_{t+1}).
+\]
+The Bellman equation above is the assignment-required stochastic infinite-horizon translation of that lecture structure.
+\end{warningbox}
+
+\subsection{Resource constraint}
+\[
+c_t + k_{t+1} = y_t + (1-\delta)\,k_t, \qquad y_{t+1} = z_{t+1}F(k_{t+1}), \qquad c_t > 0
+\]
+
+\begin{notebox}
+Lecture notes write the two-period resource constraints as
+\[
+C_t + K_{t+1} = Y_t + (1-\delta)K_t, \qquad C_{t+1} = F(K_{t+1}) + (1-\delta)K_{t+1}.
+\]
+With the assignment's TFP shock added, the coding convention is: current output is determined by installed capital today, while the choice of $k_{t+1}$ determines tomorrow's output through $y_{t+1} = z_{t+1}F(k_{t+1})$.
+\end{notebox}
+
+\subsection{Production function}
+Cobb-Douglas (stated in the assignment context):
+\[
+F(k) = A\,k^\alpha
+\]
+
+\subsection{Utility function}
+Same CRRA form as Model 1:
+\[
+u(c) =
+\begin{cases}
+\dfrac{c^{1-\sigma}-1}{1-\sigma}, & \sigma \neq 1 \\[0.5em]
+\ln(c), & \sigma = 1
+\end{cases}
+\]
+
+\begin{notebox}
+The accessible lecture notes impose increasing and concave household utility and use the same consumption theory structure as Model 1, but they do not pin down a new numeric calibration here. Keep the CRRA/log specification above as the coding parameterization unless another lecture note overrides it.
+\end{notebox}
+
+\subsection{State, control, and shock identification}
+
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Field} & \textbf{Value} \\
+\midrule
+State variables & Current capital $k_t$ and current TFP shock $z_t$ \\
+Control variable & Next-period capital $k_{t+1}$ \\
+Residual variable & Consumption $c_t$ (from the resource constraint) \\
+Derived variables & Output $Y_t = z_tF(k_t)$, investment $I_t = k_{t+1} - (1-\delta)k_t$ \\
+Shock & TFP $z \in \{z_L, z_H\}$ \\
+Shock interpretation & Bad versus good productivity \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+Lecture timing is: current output comes from already-installed capital, while the household's choice of $k_{t+1}$ determines next-period output. In the stochastic project version, store current output as $y_t = z_t F(k_t)$ after the state is realized, and carry forward the rule $y_{t+1} = z_{t+1}F(k_{t+1})$.
+\end{notebox}
+
+\subsection{Transition matrix}
+
+\[
+P^z = \begin{pmatrix} \pi_{LL}^z & \pi_{LH}^z \\ \pi_{HL}^z & \pi_{HH}^z \end{pmatrix}
+\]
+
+Assignment-required two-state discretization of the lecture's persistent TFP process:
+\[
+P^z = \begin{pmatrix} 0.9 & 0.1 \\ 0.1 & 0.9 \end{pmatrix}
+\]
+
+\begin{notebox}
+The firm notes define TFP as an exogenous AR(1)-style process, $\ln A_t = (1-\rho)A^* + \rho \ln A_{t-1} + \varepsilon_t^a$. Because the assignment requires a two-state Markov shock, $(z_L,z_H,P^z)$ should be interpreted as a discrete approximation of that lecture process unless another note file gives a discrete version directly.
+\end{notebox}
+
+\subsection{Timing convention}
+
+\begin{warningbox}
+\textbf{Lecture-consistent timing:}
+\begin{itemize}
+    \item Period $t$: the household enters with predetermined capital $k_t$ and observes current TFP $z_t$.
+    \item Current output is generated by installed capital; in the stochastic project version this is stored as $y_t = z_t F(k_t)$.
+    \item The household chooses next-period capital $k_{t+1}$.
+    \item That choice determines tomorrow's productive capital, so next-period output is $y_{t+1} = z_{t+1}F(k_{t+1})$.
+\end{itemize}
+\end{warningbox}
+
+\subsection{Feasibility conditions}
+\begin{itemize}
+    \item $c_t > 0$ always.
+    \item $k_{t+1} \in [k_{\min}, k_{\max}]$.
+    \item $k_{t+1} \geq 0$ (no negative capital).
+\end{itemize}
+
+\subsection{Parameters}
+
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Coding default / note status} \\
+\midrule
+$\beta$ & Discount factor & 0.95 \\
+$\sigma$ & Risk aversion & 2.0 \\
+$\alpha$ & Capital share in production & 0.36 \\
+$\delta$ & Depreciation rate & 0.10 \\
+$A$ & TFP scale (if used) & 1.0 \\
+$z_L$ & Low TFP state & Implementation calibration for the low state of the discretized TFP process \\
+$z_H$ & High TFP state & Implementation calibration for the high state of the discretized TFP process \\
+$k_{\min}$ & Lower bound of capital grid & 0.01 \\
+$k_{\max}$ & Upper bound of capital grid & Implementation choice; choose as a multiple of deterministic steady-state capital so the policy does not bind at the upper edge \\
+$n_k$ & Number of capital grid points & 200--400 \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{Calibration policy for Model 2.} Treat the lecture AR(1) for TFP and the timing $Y_{t+1}=F(K_{t+1})$ as lecture facts. Treat the two-state objects $(z_L,z_H,P^z)$ and the grid cap $k_{\max}$ as implementation choices used to make the assignment's VFI problem numerically tractable.
+\end{notebox}
+
+\subsection{Solver must return}
+\begin{itemize}
+    \item Value function $V(k,z)$: array of shape \texttt{(n\_k, 2)}.
+    \item Policy indices: array of shape \texttt{(n\_k, 2)}.
+    \item Capital policy $k_{t+1}(k_t,z_t)$: array of shape \texttt{(n\_k, 2)}.
+    \item Consumption policy $c(k_t,z_t)$: array of shape \texttt{(n\_k, 2)}.
+    \item Convergence diagnostics.
+    \item Grid: the capital grid array.
+\end{itemize}
+
+\subsection{Simulate, forecast, and plot}
+\begin{itemize}
+    \item Simulate: $k_t$, $c_t$, $Y_t$, $I_t$ for $T \geq 100$ periods.
+    \item Forecast: user-selected future TFP shocks; apply policy to generate deterministic path.
+    \item Plot: capital path, output path, consumption path, investment path, policy functions $k_{t+1}(k_t,z_t)$ and $c(k_t,z_t)$.
+    \item Moments: mean and variance of $Y_t$ and $c_t$; autocorrelation of $k_t$ or $Y_t$; correlation of $c_t$ with $Y_t$.
+\end{itemize}
+
+\subsection{Course-note fidelity check}
+
+\begin{warningbox}
+Resolved from the accessible lecture notes:
+\begin{itemize}
+    \item The notes explicitly use $Y_{t+1} = F(K_{t+1})$, so the choice of $K_{t+1}$ governs tomorrow's output.
+    \item The lecture resource constraints are $C_t + K_{t+1} = Y_t + (1-\delta)K_t$ and $C_{t+1} = F(K_{t+1}) + (1-\delta)K_{t+1}$.
+    \item Depreciation enters as undepreciated capital $(1-\delta)K_t$.
+    \item The accessible notes define a persistent TFP process, while the assignment is what forces a two-state Markov discretization for implementation.
+    \item The accessible notes do not give numerical values for $z_L$, $z_H$, or a project-specific upper grid bound.
+\end{itemize}
+\end{warningbox}
+
+\bigskip
+\section{Model 3: Endogenous labor supply}
+
+\subsection{Purpose}
+Household receives a time endowment ($T=1$) and chooses how much labor to supply versus how much leisure to enjoy, with a stochastic wage.
+
+\subsection{Bellman equation}
+\[
+V(a_t,w_t) = \max_{a_{t+1},\,L_t \in [0,1]} \left\{ u(c_t) + v(1-L_t) + \beta \sum_{w_{t+1}} P(w_{t+1}|w_t)\,V(a_{t+1},w_{t+1}) \right\}
+\]
+
+\begin{warningbox}
+\textbf{Lecture-confirmed project version.} The accessible lecture notes include labor supply \emph{and} saving through a non-state-contingent bond, so the asset-inclusive version is the lecture-backed default for this project.
+\end{warningbox}
+
+\subsection{Budget constraint}
+\[
+c_t + a_{t+1} = (1+r_t)\,a_t + w_t L_t, \qquad c_t > 0
+\]
+
+\begin{notebox}
+Accessible lecture notes write the two-period labor problem as
+\[
+C_t + B_t = w_t L_t - T_t, \qquad C_{t+1} = w_{t+1}L_{t+1} + (1+r_t)B_t - T_{t+1}.
+\]
+For the project sheet, use the zero-tax recursive version above unless the instructor explicitly wants taxes or profit income carried into the coding version.
+\end{notebox}
+
+\subsection{Utility function}
+\[
+U(c_t,\,1-L_t) = u(c_t) + v(1-L_t),
+\qquad
+u'(\cdot),\,v'(\cdot) > 0,\quad
+u''(\cdot),\,v''(\cdot) < 0
+\]
+
+\begin{notebox}
+The accessible lecture notes explicitly assume separable utility in consumption and leisure. They do \emph{not} provide a numerical $(\psi,\nu)$ parameterization, so any parametric leisure block used in code should be documented as an implementation choice rather than as a lecture fact.
+\end{notebox}
+
+\subsection{State, control, and shock identification}
+
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+\textbf{Field} & \textbf{Lecture-based project value} \\
+\midrule
+State variables & Current assets $a_t$ and current wage shock $w_t$ \\
+Control variables & Next-period assets $a_{t+1}$ and labor $L_t$ \\
+Residual & Consumption $c_t$ (from the budget constraint) \\
+Derived & Leisure $\ell_t = 1 - L_t$ \\
+Shock & Wage $w_t \in \{w_L, w_H\}$ \\
+Interpretation & Low versus high wage \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+Accessible lecture notes include saving/assets through the bond $B_t$, so the asset-inclusive version is the one locked in here.
+\end{notebox}
+
+\subsection{Transition matrix}
+
+\[
+P^w = \begin{pmatrix} \pi_{LL}^w & \pi_{LH}^w \\ \pi_{HL}^w & \pi_{HH}^w \end{pmatrix}
+\]
+
+Assignment-required two-state wage-shock discretization:
+\[
+P^w = \begin{pmatrix} 0.9 & 0.1 \\ 0.1 & 0.9 \end{pmatrix}
+\]
+
+\begin{notebox}
+The accessible notes motivate wage-driven labor income but do not provide a discrete wage-shock calibration. Therefore $(w_L,w_H,P^w)$ should be read as implementation choices used to satisfy the assignment's two-state Markov requirement.
+\end{notebox}
+
+\subsection{Timing convention}
+\begin{itemize}
+    \item Period $t$: the household enters with assets $a_t$ and observes wage $w_t$.
+    \item Agent chooses labor $L_t$ and next-period assets $a_{t+1}$.
+    \item Consumption is determined residually from the budget constraint.
+    \item Time endowment is $T=1$, so leisure is $1-L_t$.
+\end{itemize}
+
+\begin{notebox}
+Accessible lecture notes also assume an interior solution in which leisure stays strictly between zero and one.
+\end{notebox}
+
+\subsection{Feasibility conditions}
+\begin{itemize}
+    \item $c_t > 0$.
+    \item $0 \leq L \leq 1$ (labor bounded by time endowment).
+    \item $1 - L > 0$ if utility requires strictly positive leisure.
+    \item $a_{t+1} \in [a_{\min}, a_{\max}]$.
+\end{itemize}
+
+\subsection{Parameters}
+
+\begin{tabularx}{\linewidth}{@{}lXl@{}}
+\toprule
+\textbf{Symbol} & \textbf{Meaning} & \textbf{Coding default / note status} \\
+\midrule
+$\beta$ & Discount factor & 0.95 \\
+$\sigma$ & Consumption risk aversion & 2.0 \\
+$\psi$ & Weight on leisure in utility & Implementation calibration used only if the coding team chooses a parametric leisure block \\
+$\nu$ & Leisure curvature parameter & Implementation calibration used only if the coding team chooses a parametric leisure block \\
+$r$ & Interest rate (if assets included) & 0.03 \\
+$w_L$ & Low wage state & Implementation calibration for the low state of the assignment's wage shock \\
+$w_H$ & High wage state & Implementation calibration for the high state of the assignment's wage shock \\
+$n_L$ & Number of labor grid points & 50--100 \\
+$n_a$ & Asset grid points (if applicable) & 200--400 \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{Calibration policy for Model 3.} Treat the asset-inclusive budget structure and separable utility as lecture-confirmed. Treat any numerical leisure parameters and the discrete wage-shock values as implementation calibrations unless a later lecture note provides explicit formulas or numbers.
+\end{notebox}
+
+\subsection{Solver must return}
+\begin{itemize}
+    \item Value function $V(a,w)$: shape \texttt{(n\_a, 2)}.
+    \item Savings policy $a_{t+1}(a_t,w_t)$.
+    \item Labor policy $L(a,w)$.
+    \item Consumption policy $c(a,w)$.
+    \item Convergence diagnostics.
+\end{itemize}
+
+\subsection{Simulate, forecast, and plot}
+\begin{itemize}
+    \item Simulate: $L_t$, $c_t$, $w_t$, and $a_t$ if applicable, for $T \geq 100$ periods.
+    \item Forecast: user-selected future wage shocks; apply policy.
+    \item Plot: labor path, consumption path, wage path, assets path (if applicable), static intuition graphs (e.g.\ labor vs.\ wage, labor vs.\ $\psi$).
+    \item Moments: mean and variance of $L_t$ and $c_t$; autocorrelation; correlation of $c_t$ with wage income $w_t L_t$.
+\end{itemize}
+
+\subsection{Course-note fidelity check}
+
+\begin{warningbox}
+Resolved from the accessible lecture notes:
+\begin{itemize}
+    \item The lecture version includes saving/assets through a bond $B_t$ in addition to labor choice.
+    \item Utility is separable in consumption and leisure: $U(c_t,1-L_t)=u(c_t)+v(1-L_t)$.
+    \item Leisure enters as $T-L_t$ with $T=1$.
+    \item The lecture's two-period constraints use wage income and can include lump-sum taxes; the project sheet uses the corresponding zero-tax recursive form.
+    \item The accessible notes do not provide numerical values for $\psi$, $\nu$, $w_L$, $w_H$, or wage-transition probabilities, so those remain documented calibrations.
+\end{itemize}
+\end{warningbox}
+
+\bigskip
+\section{Cross-model coding conventions}
+
+Agree on these variable names before writing any solver, simulation, or dashboard code.
+
+\begin{tabularx}{\linewidth}{@{}llX@{}}
+\toprule
+\textbf{Code name} & \textbf{Math} & \textbf{Meaning} \\
+\midrule
+\texttt{beta} & $\beta$ & Discount factor \\
+\texttt{sigma} & $\sigma$ & CRRA risk aversion \\
+\texttt{r} & $r$ & Risk-free interest rate \\
+\texttt{alpha} & $\alpha$ & Capital share (Model 2) \\
+\texttt{delta} & $\delta$ & Depreciation rate (Model 2) \\
+\texttt{psi} & $\psi$ & Leisure weight (Model 3) \\
+\texttt{nu} & $\nu$ & Leisure curvature (Model 3) \\
+\midrule
+\texttt{a\_grid} & $\{a_1,\ldots,a_{n_a}\}$ & Asset grid \\
+\texttt{k\_grid} & $\{k_1,\ldots,k_{n_k}\}$ & Capital grid \\
+\texttt{labor\_grid} & $\{L_1,\ldots,L_{n_L}\}$ & Labor grid \\
+\midrule
+\texttt{y\_vals} & $[y_L,\,y_H]$ & Income shock values (Model 1) \\
+\texttt{z\_vals} & $[z_L,\,z_H]$ & TFP shock values (Model 2) \\
+\texttt{w\_vals} & $[w_L,\,w_H]$ & Wage shock values (Model 3) \\
+\texttt{P} & $P$ & $2\times2$ transition matrix \\
+\midrule
+\texttt{V} & $V$ & Value function array \\
+\texttt{policy\_idx} & -- & Index of optimal control on the grid \\
+\texttt{policy\_level} & -- & Level value of optimal control \\
+\texttt{c\_policy} & $c(\cdot)$ & Consumption policy array \\
+\midrule
+\texttt{shock\_idx} & -- & Current shock state index (0 or 1) \\
+\texttt{T\_sim} & $T$ & Simulation horizon \\
+\texttt{T\_fcast} & -- & Forecast horizon \\
+\texttt{seed} & -- & Random seed for reproducibility \\
+\bottomrule
+\end{tabularx}
+
+\bigskip
+
+\textbf{Solver return format (all models):}
+
+Every solver should return a dictionary with these keys:
+\begin{itemize}
+    \item \texttt{value\_function}
+    \item \texttt{policy\_indices}
+    \item \texttt{policy\_levels} (savings/capital/labor as appropriate)
+    \item \texttt{c\_policy}
+    \item \texttt{grid} (the state grid used)
+    \item \texttt{diagnostics} (dict with \texttt{iterations}, \texttt{final\_error}, \texttt{converged})
+\end{itemize}
+
+\section{Before coding starts: final checklist}
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item All note-dependent placeholders in this sheet have been resolved or explicitly labeled as not numerically specified in accessible notes.
+    \item For Model 2, the timing convention centered on $Y_{t+1} = F(K_{t+1})$ is agreed by the group.
+    \item For Model 3, the asset-inclusive lecture version is the one the group intends to code unless another instructor note overrides it.
+    \item For Model 3, the utility form is confirmed as separable unless a later course note replaces it.
+    \item The coding names in the convention table are agreed upon.
+    \item The solver return format is agreed upon.
+    \item Every teammate can answer: ``What is the state? What is the control? What is the constraint? What is the timing?'' for each model.
+    \item This sheet is saved where every teammate can access it during coding and demo prep.
+\end{enumerate}
+
+\begin{goalbox}
+\textbf{Rule.} If the course notes disagree with anything on this sheet, the course notes win. Update this sheet, then update the code.
+\end{goalbox}
+
+\end{document}

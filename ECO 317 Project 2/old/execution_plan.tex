@@ -1,0 +1,912 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{enumitem}
+\usepackage{array,booktabs,longtable,tabularx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\definecolor{myblue}{RGB}{20,55,90}
+\definecolor{mygray}{RGB}{245,245,245}
+\definecolor{mygreen}{RGB}{20,110,70}
+
+\titleformat{\section}{\large\bfseries\color{myblue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{myblue}}{\thesubsection.}{0.5em}{}
+
+\lstdefinestyle{mystyle}{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{mygray},
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    columns=fullflexible
+}
+
+\lstset{style=mystyle}
+
+\newtcolorbox{goalbox}{
+    colback=blue!3,
+    colframe=myblue,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{warningbox}{
+    colback=red!2,
+    colframe=red!55!black,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{intuitbox}{
+    colback=green!3,
+    colframe=mygreen,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Detailed Execution Plan: AI-Assisted Macroeconomic Modeling Dashboard}}\\[0.5em]
+    {\large ECO 317 -- Assignment \#2}\\[0.5em]
+    \rule{0.9\linewidth}{0.5pt}
+\end{center}
+
+\section{Detailed Step-by-Step Plan}
+
+\subsection{Step 1: Read the course notes and lock in the exact equations}
+\textbf{Goal:} Fix the economics before any solver code exists.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Make one shared ``model lock-in sheet'' with a separate block for Models 1, 2, and 3.
+    \item For each model, write down:
+    \begin{itemize}
+        \item Bellman equation,
+        \item budget or resource constraint,
+        \item state variables,
+        \item control variables,
+        \item shock states,
+        \item transition matrix,
+        \item timing convention,
+        \item variables that must be simulated and plotted.
+    \end{itemize}
+    \item Decide coding names now, for example \verb|a|, \verb|a_next|, \verb|k|, \verb|k_next|, \verb|z_idx|, \verb|P|.
+    \item Add one line saying what each solver will return.
+    \item Mark any place where the notes differ from a textbook version.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Model 1 block:
+    \begin{itemize}
+        \item state = assets and income shock,
+        \item control = next-period assets,
+        \item consumption comes from the budget constraint.
+    \end{itemize}
+    \item Model 2 block:
+    \begin{itemize}
+        \item explicitly write whether output uses current capital or next-period capital.
+    \end{itemize}
+    \item Model 3 block:
+    \begin{itemize}
+        \item explicitly write whether assets belong in the lecture version.
+    \end{itemize}
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item One model lock-in sheet used by the entire team.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item If someone asks ``what is the state, control, constraint, and timing?'' for any model, the answer should be immediate.
+\end{itemize}
+
+\subsection{Step 2: Set up the repository and development environment}
+\textbf{Goal:} Make the project launch the same way on every laptop.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Create the repository and folder tree.
+    \item Add \verb|requirements.txt| first.
+    \item Create a virtual environment.
+    \item Install packages.
+    \item Make a tiny \verb|app.py| test page to confirm Streamlit launches.
+    \item Check that all teammates can run the app locally.
+\end{itemize}
+
+\textbf{Files to create immediately:}
+\begin{itemize}
+    \item \verb|app.py|
+    \item \verb|requirements.txt|
+    \item \verb|README.md|
+    \item \verb|config.py|
+    \item \verb|assets/style.css|
+    \item \verb|models/|, \verb|solvers/|, \verb|simulation/|, \verb|utils/|, \verb|tests/|
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Use a minimal smoke test first:
+\end{itemize}
+\begin{lstlisting}
+import streamlit as st
+
+st.title("ECO 317 Project 2")
+st.write("Environment test passed.")
+\end{lstlisting}
+\begin{itemize}
+    \item Run \verb|streamlit run app.py| before writing any model logic.
+    \item Fix missing-package or Python-version problems now rather than during model development.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A clean repo that installs with one command and launches with one command.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item \verb|pip install -r requirements.txt| works.
+    \item \verb|streamlit run app.py| opens in a browser without errors.
+\end{itemize}
+
+\subsection{Step 3: Build the project skeleton before filling in model logic}
+\textbf{Goal:} Make the architecture visible before the hard coding begins.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Create empty modules with docstrings and placeholder functions.
+    \item Define consistent function signatures.
+    \item Decide one solver return structure for all models.
+    \item Decide where parameter dictionaries or dataclasses will live.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Put placeholders like this into each model file:
+\end{itemize}
+\begin{lstlisting}
+def solve_consumption_savings(params):
+    """Return value function, policies, grids, and diagnostics."""
+    raise NotImplementedError
+\end{lstlisting}
+\begin{itemize}
+    \item Decide early that each solver returns keys such as:
+    \begin{itemize}
+        \item \verb|value_function|,
+        \item \verb|policy_indices|,
+        \item \verb|policy_levels|,
+        \item \verb|grids|,
+        \item \verb|diagnostics|.
+    \end{itemize}
+    \item This prevents each teammate from inventing a different output format.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A modular skeleton where every major task already has a home.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item A new teammate should be able to glance at the file tree and understand where each piece belongs.
+\end{itemize}
+
+\subsection{Step 4: Build shared utilities first}
+\textbf{Goal:} Build the reusable numerical pieces once.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item In \verb|utils/grids.py|, write functions to create linear grids and optionally curved grids.
+    \item Add clipping and bounds-check helpers.
+    \item In \verb|utils/markov.py|, write transition-matrix validation and shock-path simulation.
+    \item In \verb|utils/interpolation.py|, wrap \verb|numpy.interp| so simulation and forecasting can evaluate policies off-grid.
+    \item In \verb|simulation/moments.py|, write functions for mean, variance, lag-1 autocorrelation, and correlations.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Start the asset or capital grid with something like:
+\end{itemize}
+\begin{lstlisting}
+grid = np.linspace(x_min, x_max, n_points)
+\end{lstlisting}
+\begin{itemize}
+    \item For the Markov chain, create a validator that checks:
+    \begin{itemize}
+        \item correct shape,
+        \item probabilities are nonnegative,
+        \item each row sums to 1.
+    \end{itemize}
+    \item For interpolation, create one helper so all models use the same policy-evaluation rule when the state is off-grid.
+\end{itemize}
+
+\textbf{Important detail:}
+\begin{itemize}
+    \item The transition matrix should be validated carefully: rows must sum to 1, probabilities must be nonnegative, and the shock-state ordering must be consistent everywhere.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A reusable numerical toolkit used by all three models.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item You can generate a valid grid, simulate a two-state Markov chain, and compute moments on a fake time series.
+\end{itemize}
+
+\subsection{Step 5: Implement the generic VFI engine}
+\textbf{Goal:} Create one Bellman-iteration backbone that all models can use.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Write the main VFI loop in \verb|solvers/vfi.py|.
+    \item Allow the model file to supply model-specific pieces such as utility, feasibility, state transition logic, and candidate controls.
+    \item Track convergence distance at each iteration.
+    \item Return diagnostics such as number of iterations, final error, and whether convergence was achieved.
+    \item Store policy indices so simulation does not need to re-solve the Bellman problem later.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Start with:
+\end{itemize}
+\begin{lstlisting}
+V = np.zeros((n_grid, n_shocks))
+for it in range(max_iter):
+    V_new = np.empty_like(V)
+    policy_idx = np.empty_like(V, dtype=int)
+\end{lstlisting}
+\begin{itemize}
+    \item For each state:
+    \begin{itemize}
+        \item generate candidate controls,
+        \item remove infeasible choices,
+        \item compute current utility,
+        \item compute expected continuation value,
+        \item maximize over controls,
+        \item store the best index.
+    \end{itemize}
+    \item At the end of each iteration compute:
+\end{itemize}
+\begin{lstlisting}
+err = np.max(np.abs(V_new - V))
+\end{lstlisting}
+\begin{itemize}
+    \item Stop when \verb|err < tol|.
+\end{itemize}
+
+\textbf{Important implementation choice:}
+\begin{itemize}
+    \item Keep the generic solver reusable, but not so abstract that debugging becomes impossible.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A reusable solver backbone that every model can call.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item The solver converges on a tiny toy problem with known behavior.
+\end{itemize}
+
+\subsection{Step 6: Add hard feasibility checks before any real model runs}
+\textbf{Goal:} Ensure impossible choices never enter the maximization.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item For each model, define a feasibility function.
+    \item Any infeasible choice should be excluded from the maximization.
+    \item Never let negative consumption pass silently.
+    \item Decide whether infeasible values get \verb|-np.inf| utility or are filtered out before maximization.
+    \item Add assertions in testing so infeasible policies are caught immediately.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item In Model 1, compute:
+\end{itemize}
+\begin{lstlisting}
+c = (1 + r) * a + y - a_prime
+feasible = c > 0
+\end{lstlisting}
+\begin{itemize}
+    \item In the labor model also require:
+    \begin{itemize}
+        \item \(0 \leq L \leq 1\),
+        \item \(1-L > 0\) when utility needs positive leisure,
+        \item next-period states stay within bounds.
+    \end{itemize}
+    \item Either drop infeasible controls or assign them \verb|-np.inf|.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item Reliable numerical safeguards.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item With extreme parameter values, the solver should still fail cleanly or exclude bad choices, not produce nonsense.
+\end{itemize}
+
+\subsection{Step 7: Implement Model 1 completely before touching Models 2 and 3}
+\textbf{Goal:} Use Model 1 as the full prototype pipeline.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Create the asset grid.
+    \item Define low and high income states.
+    \item Define the \(2 \times 2\) Markov transition matrix.
+    \item Implement the utility function, including the log case when \verb|sigma = 1|.
+    \item For each current asset and current income state, evaluate all feasible choices of next-period assets.
+    \item Compute the expected continuation value using the transition matrix.
+    \item Solve for the value function, savings policy, and implied consumption policy.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Start with a grid like:
+\end{itemize}
+\begin{lstlisting}
+a_min, a_max, n_a = 0.0, 20.0, 200
+asset_grid = np.linspace(a_min, a_max, n_a)
+\end{lstlisting}
+\begin{itemize}
+    \item Define income states such as \verb|y_vals = [y_low, y_high]|.
+    \item Define the transition matrix:
+\end{itemize}
+\begin{lstlisting}
+P = np.array([[0.9, 0.1],
+              [0.1, 0.9]])
+\end{lstlisting}
+\begin{itemize}
+    \item For each \((a, y)\):
+    \begin{itemize}
+        \item loop through candidate \(a'\) values,
+        \item compute consumption,
+        \item remove infeasible choices,
+        \item evaluate Bellman value,
+        \item save best \(a'\) and implied \(c\).
+    \end{itemize}
+\end{itemize}
+
+\textbf{Economic checks:}
+\begin{itemize}
+    \item Consumption should be positive everywhere.
+    \item Savings should typically rise with assets.
+    \item Higher patience should generally increase saving.
+    \item Higher risk aversion should generally smooth consumption more.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item One fully solved model with believable policies.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item You can plot \(a'(a,y)\) and \(c(a,y)\) for both income states and the curves look smooth and economically sensible.
+\end{itemize}
+
+\subsection{Step 8: Build simulation and moments for Model 1}
+\textbf{Goal:} Turn the solved policies into a usable time series.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Choose an initial asset level and initial shock state.
+    \item Simulate a shock path using the Markov chain.
+    \item Use the saved policy functions each period.
+    \item Interpolate when the current state falls between grid points.
+    \item Store the full time paths for assets, consumption, and income.
+    \item Convert the arrays into a DataFrame.
+    \item Compute mean, variance, lag-1 autocorrelation, and correlation with income.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Fix:
+    \begin{itemize}
+        \item \(T = 100\) or \(200\),
+        \item \(a_0\),
+        \item initial shock state,
+        \item random seed.
+    \end{itemize}
+    \item At each period:
+    \begin{itemize}
+        \item read current state,
+        \item interpolate the policy if the asset level is off-grid,
+        \item compute next assets,
+        \item recover consumption from the budget constraint,
+        \item store assets, consumption, and income.
+    \end{itemize}
+    \item Build a DataFrame with columns like \verb|assets|, \verb|consumption|, \verb|income|.
+\end{itemize}
+
+\textbf{Important detail:}
+\begin{itemize}
+    \item Do not recompute the maximization during simulation. Simulation should only read the solved policy functions.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A complete Model 1 pipeline from solver to time series to moments.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item With the same random seed, the simulation should be reproducible.
+\end{itemize}
+
+\subsection{Step 9: Build forecast logic for Model 1 using the solved policy functions}
+\textbf{Goal:} Forecast with policy rules instead of trend fitting.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Write a forecast function that accepts the current state and a user-chosen future shock path.
+    \item Use the actual policy rules to update the state period by period.
+    \item Generate forecast paths for consumption, savings or assets, and income.
+    \item Make the horizon configurable.
+    \item Keep the forecast logic separate from stochastic simulation, since here the future shock path is user-controlled.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Suppose the current state is ``assets = 4.2, shock = low income.''
+    \item Suppose the chosen future shocks are \verb|[high, high, low, high]|.
+    \item For each forecast step:
+    \begin{itemize}
+        \item evaluate the saved policy,
+        \item update assets,
+        \item move to the next user-chosen shock,
+        \item store the forecasted variables.
+    \end{itemize}
+    \item Keep the forecast arrays separate from the stochastic simulation arrays.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item Forecast series that are genuinely implied by the solved model.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item If the user chooses a sequence of high shocks, the forecast should reflect that path in a way consistent with the model's policy functions.
+\end{itemize}
+
+\subsection{Step 10: Implement Model 2 only after a timing checkpoint}
+\textbf{Goal:} Build the Robinson Crusoe model without a timing error.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Re-open the notes and verify the exact capital-output timing.
+    \item Define the capital grid and TFP shock states.
+    \item Implement the transition matrix for TFP.
+    \item Write production and depreciation logic.
+    \item Solve for the value function, next-period capital policy, and implied consumption policy.
+    \item Add implied output and investment calculations for simulation and plots.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Write a comment at the top of the file stating the timing convention taken from the notes.
+    \item Start with:
+\end{itemize}
+\begin{lstlisting}
+k_grid = np.linspace(k_min, k_max, n_k)
+z_vals = np.array([z_low, z_high])
+\end{lstlisting}
+\begin{itemize}
+    \item For each \((k, z)\):
+    \begin{itemize}
+        \item loop over candidate \(k'\),
+        \item compute output,
+        \item compute consumption,
+        \item exclude infeasible choices,
+        \item maximize Bellman value.
+    \end{itemize}
+    \item Save derived quantities such as output and investment for simulation plots.
+\end{itemize}
+
+\textbf{Economic checks:}
+\begin{itemize}
+    \item Output should be higher in the good TFP state.
+    \item Capital policy should usually respond positively to better productivity.
+    \item Consumption and investment should behave sensibly when TFP changes.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A solved stochastic growth-style model with capital accumulation.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item The model should produce reasonable paths for capital, output, consumption, and investment.
+\end{itemize}
+
+\subsection{Step 11: Implement Model 3 with labor-leisure trade-offs and confirm whether assets belong}
+\textbf{Goal:} Build the labor model exactly as the lecture version intends.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Confirm from the notes whether the state includes assets or just the wage shock and labor choice.
+    \item Define wage states and the wage transition matrix.
+    \item Define the labor grid on \([0,1]\).
+    \item If assets are included, jointly search over labor and next-period assets.
+    \item If assets are not included, solve the simpler static or dynamic labor-choice version from the notes.
+    \item Recover labor, consumption, and savings policies if relevant.
+    \item Simulate labor, wage, and consumption paths.
+    \item Build at least one static intuition graph, such as labor against wage or labor against the preference parameter.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Start with a labor grid:
+\end{itemize}
+\begin{lstlisting}
+labor_grid = np.linspace(0.0, 1.0, 51)
+\end{lstlisting}
+\begin{itemize}
+    \item If assets are included:
+    \begin{itemize}
+        \item loop over \(a'\),
+        \item loop over \(L\),
+        \item compute \(c\) and leisure \(1-L\),
+        \item keep only feasible points.
+    \end{itemize}
+    \item If assets are not included:
+    \begin{itemize}
+        \item do not force an asset dimension into the model,
+        \item solve the simpler lecture version instead.
+    \end{itemize}
+    \item Save policies for labor, consumption, and assets if applicable.
+\end{itemize}
+
+\textbf{Important detail:}
+\begin{itemize}
+    \item Make sure leisure is coded as \(1-L\) and stays positive.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A labor-supply module that can explain both substitution and wealth-effect intuition.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item Labor always lies in \([0,1]\), and the resulting plots are economically interpretable.
+\end{itemize}
+
+\subsection{Step 12: Unify simulation, forecasting, and moments across all three models}
+\textbf{Goal:} Give the app one common interface across all models.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Make sure each model returns results in a comparable structure.
+    \item Standardize naming for states, controls, and series.
+    \item Have one shared simulation interface and one shared forecast interface.
+    \item Build a shared moments table generator that can adapt to different variables by model.
+    \item Decide which series are the key variables for each model.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Make each model return a dictionary with the same top-level keys:
+    \begin{itemize}
+        \item \verb|solution|,
+        \item \verb|simulation|,
+        \item \verb|forecast|,
+        \item \verb|moments|,
+        \item \verb|plots_data|.
+    \end{itemize}
+    \item Use model-specific variable names inside a common format.
+    \item This lets \verb|app.py| render different models without branching everywhere.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A common API that the Streamlit app can call without model-specific hacks scattered everywhere.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item Swapping from Model 1 to Model 2 in the app should mostly change the data, not the architecture.
+\end{itemize}
+
+\subsection{Step 13: Build the Streamlit dashboard only after one full model pipeline is stable}
+\textbf{Goal:} Put the interface on top of working economics rather than unfinished economics.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Load CSS from \verb|assets/style.css|.
+    \item Add sidebar navigation between the three models.
+    \item Add model-specific parameter controls in the sidebar.
+    \item Add controls for transition probabilities, simulation horizon, and forecast horizon.
+    \item Solve the selected model using cached functions.
+    \item Run simulation and forecasting for the selected model.
+    \item Display the outputs in a consistent page structure.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Sidebar controls:
+    \begin{itemize}
+        \item model selector,
+        \item parameters,
+        \item transition probabilities,
+        \item simulation horizon,
+        \item forecast horizon.
+    \end{itemize}
+    \item Main-page order:
+    \begin{itemize}
+        \item title and model description,
+        \item equations used,
+        \item policy function plot,
+        \item simulated time-series plot,
+        \item forecast plot,
+        \item comparative-statics graph,
+        \item moments table,
+        \item static intuition section,
+        \item dynamic summary text.
+    \end{itemize}
+    \item Cache the expensive solver call so minor UI interactions do not trigger full re-solves unnecessarily.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item One app that makes the three models feel like one project rather than three unrelated scripts.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item A user can switch models without the app breaking or looking inconsistent.
+\end{itemize}
+
+\subsection{Step 14: Add comparative statics and dynamic written summaries}
+\textbf{Goal:} Make the app explain what changes when parameters change.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Add a baseline-versus-alternative parameter comparison for at least one model.
+    \item Good candidates are higher \verb|beta|, higher \verb|sigma|, or different wage or TFP persistence.
+    \item Plot the two policy functions on the same figure or in side-by-side panels.
+    \item Write summary functions that read the moments and generate deterministic interpretation text.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Solve one baseline calibration and one alternative calibration.
+    \item Example:
+    \begin{itemize}
+        \item baseline \(\beta = 0.95\),
+        \item alternative \(\beta = 0.98\).
+    \end{itemize}
+    \item Plot both policy functions together and label them clearly.
+    \item Generate summary text with templates such as:
+\end{itemize}
+\begin{lstlisting}
+summary = (
+    f"Mean consumption is {mean_c:.2f}. "
+    f"When beta rises, the policy shifts toward more saving."
+)
+\end{lstlisting}
+\begin{itemize}
+    \item Keep the runtime text deterministic and tied to computed results.
+\end{itemize}
+
+\textbf{A good summary should do four things:}
+\begin{itemize}
+    \item identify the variable,
+    \item state what changed,
+    \item connect it to economic intuition,
+    \item avoid claiming more than the computed results show.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item Visual and written interpretation of live results.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item The text below the charts changes when the user changes parameters, and the wording reflects the actual computed moments.
+\end{itemize}
+
+\subsection{Step 15: Add styling, caching, and performance protection}
+\textbf{Goal:} Make the app pleasant to demo and fast enough to use live.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Create a dark or navy background and bright white content cards.
+    \item Use a robust serif font stack if local Garamond is unavailable.
+    \item Wrap expensive solver functions in Streamlit caching.
+    \item Choose default grid sizes and horizons that update within a few seconds.
+    \item Keep plot labels clean and readable.
+    \item Make sure the page layout is visually consistent across models.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Put visual rules in \verb|assets/style.css|.
+    \item Start with conservative defaults such as:
+    \begin{itemize}
+        \item 150--250 grid points,
+        \item 100--200 simulated periods,
+        \item cached solver output keyed by parameter values.
+    \end{itemize}
+    \item Time common interactions such as changing \(\beta\) or forecast length.
+    \item If one slider creates a long delay, lower the default grid density or cache more aggressively.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A dashboard that looks intentional and behaves smoothly.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item Standard slider changes should update quickly on an ordinary laptop.
+\end{itemize}
+
+\subsection{Step 16: Test mathematical correctness, numerical stability, and UI behavior}
+\textbf{Goal:} Convert ``works on my machine'' into ``safe to demo live.''
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Add tests to verify positive consumption, valid policy bounds, and convergence.
+    \item Check for NaNs, infinities, or jagged policy plots.
+    \item Verify that interpolation never pushes states outside valid ranges.
+    \item Confirm that comparative statics move in sensible directions.
+    \item Test every page, slider, and forecast control in the dashboard.
+    \item Compare the moments table to direct calculations from the simulated data.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Add tests such as:
+    \begin{itemize}
+        \item ``all simulated consumption values are positive,''
+        \item ``all labor choices lie in \([0,1]\),''
+        \item ``solver converges before max iterations.''
+    \end{itemize}
+    \item Inspect plots visually for jagged or discontinuous policies.
+    \item Compare dashboard moments to direct \verb|numpy| or \verb|pandas| calculations from the same arrays.
+    \item Click through all pages and try awkward inputs intentionally.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A tested project rather than a fragile one.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item Every model passes a basic suite of solver, simulation, and UI sanity checks.
+\end{itemize}
+
+\subsection{Step 17: Keep a prompt log and explainable comments throughout development}
+\textbf{Goal:} Be ready to explain both the code and the AI workflow.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Keep a simple prompt log with one entry per major component.
+    \item For each entry, record the prompt, what file it helped create, and how the output was checked or corrected.
+    \item Add comments explaining the economics, not just the syntax.
+    \item Mark the key lines in the code that implement constraints, Bellman updates, and policy extraction.
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item A prompt-log entry should contain:
+    \begin{itemize}
+        \item prompt used,
+        \item file affected,
+        \item what part of the output was kept,
+        \item what had to be corrected,
+        \item how the economics were verified.
+    \end{itemize}
+    \item In code comments, prefer comments like ``Compute expected continuation value over next-period shocks'' instead of comments that only restate syntax.
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item Evidence that AI was used responsibly and verified.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item If the professor points to a function, someone in the group can explain both what it does and how it was validated.
+\end{itemize}
+
+\subsection{Step 18: Rehearse the live demo exactly as it will happen}
+\textbf{Goal:} Practice the actual grading situation, not just the software.
+
+\textbf{Do this:}
+\begin{itemize}
+    \item Start from a fresh terminal and run the full install and launch sequence.
+    \item Practice switching between all three models.
+    \item Practice changing parameters and narrating the economic effect.
+    \item Practice explaining why VFI is used, what the Markov chain does, why interpolation is needed, and why caching matters.
+    \item Practice answering ``show me where this is in the code.''
+\end{itemize}
+
+\textbf{Example workflow:}
+\begin{itemize}
+    \item Rehearsal round 1:
+    \begin{itemize}
+        \item one teammate runs the terminal,
+        \item one teammate acts as the professor,
+        \item one teammate records confusion points.
+    \end{itemize}
+    \item Rehearsal round 2:
+    \begin{itemize}
+        \item switch presenters,
+        \item ask code questions like ``where is the Bellman update?'' and ``where is interpolation used?''
+    \end{itemize}
+    \item Rehearsal round 3:
+    \begin{itemize}
+        \item rapidly switch models and change parameters to test robustness.
+    \end{itemize}
+\end{itemize}
+
+\textbf{Deliverable:}
+\begin{itemize}
+    \item A group that can both run and defend the project.
+\end{itemize}
+
+\textbf{Quick check:}
+\begin{itemize}
+    \item Any teammate can handle a random question without needing someone else to rescue the explanation.
+\end{itemize}
+
+\section{Final Order of Execution}
+
+If the group wants the shortest operational version, follow this exact sequence:
+
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item Lock equations from the course notes.
+    \item Set up the repository and environment.
+    \item Create the file skeleton.
+    \item Build shared utilities.
+    \item Build the generic VFI solver.
+    \item Add feasibility checks.
+    \item Finish Model 1 completely.
+    \item Add simulation and moments for Model 1.
+    \item Add forecasting for Model 1.
+    \item Implement Model 2 after timing verification.
+    \item Implement Model 3 after confirming whether assets are included.
+    \item Standardize simulation, forecast, and moments across all models.
+    \item Build the Streamlit dashboard.
+    \item Add comparative statics and dynamic summaries.
+    \item Add styling, caching, and performance tuning.
+    \item Run mathematical, numerical, and UI tests.
+    \item Maintain the prompt log and comments.
+    \item Rehearse the live demo from scratch.
+\end{enumerate}
+
+\begin{goalbox}
+\textbf{Bottom line.} The project should be built in a way that makes the economics correct first, the numerical methods trustworthy second, and the dashboard polished third. A clean live demo is important, but the strongest defense comes from having a team that can explain exactly why the model equations, policy functions, forecasts, and summaries are correct.
+\end{goalbox}
+
+\end{document}

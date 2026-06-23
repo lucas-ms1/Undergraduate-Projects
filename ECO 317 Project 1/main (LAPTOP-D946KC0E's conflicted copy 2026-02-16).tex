@@ -1,0 +1,1297 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{parskip}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{bookmark}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{newunicodechar}
+\newunicodechar{≥}{\ensuremath{\geq}}
+\newunicodechar{≤}{\ensuremath{\leq}}
+\newunicodechar{≈}{\ensuremath{\approx}}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  citecolor=blue!50!black
+}
+
+% Slightly more breathable lists (without changing existing list calls)
+\setlist[itemize]{leftmargin=*, itemsep=0.25em, topsep=0.25em}
+
+% Reusable “classroom vs intuition” boxes for concept notes
+\tcbset{
+  colback=white,
+  colframe=black!25,
+  boxrule=0.5pt,
+  arc=2pt,
+  left=6pt,right=6pt,top=6pt,bottom=6pt
+}
+\newtcolorbox{ConceptBox}[1]{title={#1}, fonttitle=\bfseries, colback=black!1}
+\newtcolorbox{ClassroomBox}{title={Classroom explanation}, fonttitle=\bfseries, colback=blue!2, colframe=blue!35!black}
+\newtcolorbox{IntuitionBox}{title={Intuitive explanation}, fonttitle=\bfseries, colback=green!2, colframe=green!35!black}
+\newtcolorbox{WhereBox}{title={Where you use it in this project}, fonttitle=\bfseries, colback=purple!2, colframe=purple!35!black}
+
+\title{Macro Project 1 --- Data Suite\\Study Sheet}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\vspace{0.5em}\noindent\rule{\textwidth}{0.4pt}\vspace{0.75em}
+
+
+\section{Macro Project 1 — Data Suite (Study Sheet)}
+
+
+Local-first Streamlit app for pulling/transforming \textbf{market}, \textbf{macro}, and \textbf{news} data; running \textbf{recipes} (indicators, econometrics, forecasting, sentiment); and persisting results as \textbf{jobs} with \textbf{SQLite logs} and \textbf{CSV artifacts}.
+
+
+\subsection{Quickstart (how to run)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item Create venv, install editable package (and extras as needed), copy \texttt{.env}, run Streamlit:
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \texttt{pip install -e ".[dev]"} then \texttt{streamlit run streamlit\_app.py}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item Optional feature extras (install as needed):
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item Market: \texttt{pip install -e ".[market]"}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item Macro: \texttt{pip install -e ".[macro]"}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item News: \texttt{pip install -e ".[news]"}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item Forecast: \texttt{pip install -e ".[forecast]"}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item Econometrics: \texttt{pip install -e ".[econ]"}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item ML (FinBERT): \texttt{pip install -e ".[ml]"}
+\end{itemize}
+
+
+
+\subsection{High-level architecture (what runs where)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{UI layer}: \texttt{streamlit\_app.py} renders controls, submits jobs, and renders results by reading job status + artifacts.
+\item \textbf{Job layer}: \texttt{JobRunner} runs work in a background thread; \texttt{SQLiteStorage} persists job lifecycle + logs.
+\item \textbf{Providers}: \texttt{Provider.fetch()} pulls raw data (market/macro/news) into a normalized dataframe schema.
+\item \textbf{Recipes}: \texttt{Recipe.run()} transforms an input dataframe (indicators, econometric models, forecasts, sentiment aggregation).
+\item \textbf{Artifacts}: successful jobs write a CSV to \texttt{FINREC\_RESULTS\_DIR} and store its path in SQLite.
+\end{itemize}
+
+
+\subsection{Common artifact schemas (what columns to expect)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Market providers (`kind='market'`)}: \texttt{date} (YYYY-MM-DD string), \texttt{symbol}, and numeric OHLCV columns like \texttt{open/high/low/close/volume} (some may be missing depending on provider/interval).
+\item \textbf{Macro providers (`kind='macro'`)}: long-form \texttt{date}, \texttt{series\_id}, \texttt{value} (numeric).
+\item \textbf{News providers (`kind='news'`)}: \texttt{ts} (timestamp string), \texttt{date}, \texttt{query}, \texttt{language}, \texttt{title}, \texttt{snippet}, \texttt{source}, \texttt{url}.
+\item \textbf{Forecast recipes}: long-form rows with \texttt{date}, \texttt{y}, \texttt{yhat}, \texttt{segment} in \{train,test,forecast\}, \texttt{method}, \texttt{target} (optional \texttt{yhat\_lower/yhat\_upper}).
+\item \textbf{Econometrics recipes (OLS/AR1)}: coefficient table with \texttt{term}, \texttt{coef}, \texttt{std\_err}, \texttt{t}, \texttt{p\_value}, plus \texttt{nobs}, \texttt{r2}, \texttt{adj\_r2}.
+\item \textbf{LP-IRF recipe}: horizon table with \texttt{horizon}, \texttt{irf}, \texttt{std\_err}, \texttt{ci\_low}, \texttt{ci\_high}, \texttt{nobs}.
+\end{itemize}
+
+
+\subsection{End-to-end data flow diagram}
+
+
+\begin{verbatim}
+flowchart TD
+  user[User] --> streamlitUI[Streamlit_UI]
+  streamlitUI --> sessionState[SessionState_singletons]
+  streamlitUI --> submitProvider[submit_provider_fetch]
+  streamlitUI --> submitRecipe[submit_recipe_run]
+
+  submitProvider --> jobRunner[JobRunner_submit]
+  submitRecipe --> jobRunner
+
+  jobRunner --> sqlite[SQLiteStorage_jobs_logs]
+  jobRunner --> artifact[CSV_artifact_results_dir]
+
+  jobRunner --> providerFetch[Provider_fetch]
+  jobRunner --> recipeRun[Recipe_run]
+
+  providerFetch --> providerRegistry[get_registry]
+  providerRegistry --> providerImpl[Provider_impl_fetch]
+
+  recipeRun --> recipeRegistry[get_recipe_registry]
+  recipeRegistry --> recipeImpl[Recipe_impl_run]
+
+  sqlite --> streamlitUI
+  artifact --> streamlitUI
+\end{verbatim}
+
+\subsection{Core “mental model” types}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{Provider}** (\texttt{src/finrec/providers/base.py}): \texttt{fetch(request, ctx) -> pd.DataFrame}}
+\item \textbf{\texttt{Recipe}** (\texttt{src/finrec/recipes/base.py}): \texttt{run(df, params, ctx) -> pd.DataFrame}}
+\item \textbf{\texttt{JobRunner}** (\texttt{src/finrec/jobs/runner.py}): \texttt{submit(..., fn)} runs \texttt{fn(ctx)} in a thread, persists status/logs, writes CSV artifact.}
+\item \textbf{\texttt{SQLiteStorage}** (\texttt{src/finrec/storage/sqlite.py}): job table + job\_logs table.}
+\end{itemize}
+
+
+\subsection{How to read the function write-ups below}
+
+Each function entry includes:
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Technical}: inputs/outputs, side effects, algorithm steps, error handling, optional dependencies.
+\item \textbf{Intuitive}: plain-English purpose (“why this exists”).
+\item \textbf{Gotchas}: common edge cases and failure modes.
+\end{itemize}
+
+
+\vspace{0.25em}
+\section{Concepts (classroom + intuitive)}
+
+This section is meant to read like class notes: each method has a compact formula/definition, a “when to use it,” and a short plain-English explanation. The function reference later is the implementation-level detail.
+
+\subsection{Forecasting}
+
+\begin{ConceptBox}{Naive forecast (\texttt{forecast\_naive})}
+\begin{ClassroomBox}
+\textbf{Definition.} Predict every future value with the last observed training value:
+\[
+\hat{y}_{t+h} = y_t \quad \text{for } h=1,2,\dots
+\]
+\textbf{Use when.} You need a baseline to beat, or the series is roughly a random walk.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Assume nothing changes. Whatever the series is today is the best guess for tomorrow.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{NaiveForecastRecipe} (\texttt{id='forecast\_naive'}). Output is normalized via \texttt{build\_forecast\_output}.
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Drift forecast (\texttt{forecast\_drift})}
+\begin{ClassroomBox}
+\textbf{Definition.} Extend a straight line from the first to last training point:
+\[
+\hat{y}_{t+h} = y_t + h\cdot\frac{y_t - y_1}{t-1}.
+\]
+\textbf{Use when.} The series has a clear trend and you want a simple trending baseline.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Keep moving forward at the average pace you’ve been moving.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{DriftForecastRecipe} (\texttt{id='forecast\_drift'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{ETS / Holt–Winters exponential smoothing (\texttt{forecast\_ets})}
+\begin{ClassroomBox}
+\textbf{Core idea.} Build forecasts from exponentially-weighted components (level, trend, and optionally seasonality). A simple level-only form is:
+\[
+\ell_t=\alpha y_t+(1-\alpha)\ell_{t-1}, \qquad \hat{y}_{t+h}=\ell_t.
+\]
+\textbf{Use when.} You want a strong classic method for smooth series with level/trend/seasonality (especially at regular frequencies).
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Smooth out the noise, keep the main pattern, then extend that pattern forward.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{ETSForecastRecipe} (\texttt{id='forecast\_ets'}), using \texttt{statsmodels.tsa.holtwinters}.
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{ARIMA(\(p,d,q\)) (\texttt{forecast\_arima})}
+\begin{ClassroomBox}
+\textbf{Model.} ARIMA combines autoregression (AR), differencing (I), and moving average (MA). A standard compact form is:
+\[
+\phi(L)(1-L)^d y_t = c + \theta(L)\varepsilon_t,
+\]
+where \(L\) is the lag operator, \(p=\deg(\phi)\), \(d\) is the differencing order, \(q=\deg(\theta)\), and \(\varepsilon_t\) is a white-noise shock.
+\textbf{Use when.} You have a single time series with persistence; differencing makes it approximately stationary; you want interpretable, classical forecasting with uncertainty intervals when available.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Predict the next value using patterns in recent history—after you remove the big trend so the model is learning the ‘usual wiggles.’”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{ARIMAForecastRecipe} (\texttt{id='forecast\_arima'}), implemented with \texttt{statsmodels} SARIMAX and a small AIC grid search over \((p,d,q)\).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Lag-feature ML forecasting (Ridge / Random Forest)}
+\begin{ClassroomBox}
+\textbf{Setup.} Turn a time series into supervised learning by using the last \(k\) lags as features:
+\[
+X_t = (y_{t-1},y_{t-2},\dots,y_{t-k}), \qquad \text{predict } y_t.
+\]
+Train a model (Ridge regression or Random Forest) and forecast multiple steps via recursive prediction.
+\textbf{Use when.} You want a simple ML baseline that can capture nonlinearities (RF) or stable linear effects (Ridge) without specifying an ARIMA structure.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Teach a model: ‘given what happened in the last \(k\) periods, what usually happens next?’ Then let it roll forward step by step.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipes: \texttt{RidgeLagForecastRecipe} (\texttt{id='forecast\_ridge\_lags'}) and \texttt{RandomForestLagForecastRecipe} (\texttt{id='forecast\_rf\_lags'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\subsection{Time-series transforms}
+
+\begin{ConceptBox}{Log returns (\texttt{log\_returns})}
+\begin{ClassroomBox}
+\textbf{Definition.} For a price/index \(p_t>0\),
+\[
+r_t = \log(p_t) - \log(p_{t-1}).
+\]
+For small changes, \(r_t \approx \frac{p_t-p_{t-1}}{p_{t-1}}\).
+\textbf{Use when.} You want growth rates that are more stable than raw levels; common in finance and macro.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Instead of tracking the level, track the percent-ish change from one period to the next.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{LogReturnsRecipe} (\texttt{id='log\_returns'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Rolling z-score (\texttt{rolling\_zscore})}
+\begin{ClassroomBox}
+\textbf{Definition.} With rolling mean \(\mu_t\) and std \(\sigma_t\),
+\[
+z_t = \frac{x_t-\mu_t}{\sigma_t}.
+\]
+\textbf{Use when.} You want a standardized “how extreme is this?” signal relative to recent history.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“How many ‘usual’ units above or below normal is today, compared to the recent past?”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{RollingZScoreRecipe} (\texttt{id='rolling\_zscore'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\subsection{Technical indicators}
+
+\begin{ConceptBox}{Simple moving average (SMA) (\texttt{sma})}
+\begin{ClassroomBox}
+\[
+\mathrm{SMA}_t = \frac{1}{w}\sum_{i=0}^{w-1} x_{t-i}.
+\]
+\textbf{Use when.} You want a smooth trend line that filters short-run noise.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Average the last \(w\) points so the line doesn’t jump around as much.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{SimpleMovingAverageRecipe} (\texttt{id='sma'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Exponential moving average (EMA) (\texttt{ema})}
+\begin{ClassroomBox}
+\[
+\mathrm{EMA}_t = \alpha x_t + (1-\alpha)\mathrm{EMA}_{t-1}, \quad \alpha=\frac{2}{\text{span}+1}.
+\]
+\textbf{Use when.} You want smoothing that reacts faster to recent changes than SMA.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Like an average, but it ‘listens’ more to what just happened.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{ExponentialMovingAverageRecipe} (\texttt{id='ema'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{RSI (Relative Strength Index) (\texttt{rsi})}
+\begin{ClassroomBox}
+\textbf{Definition.} Compare average gains to average losses over a window:
+\[
+\mathrm{RS}=\frac{\text{avg gain}}{\text{avg loss}}, \qquad \mathrm{RSI}=100-\frac{100}{1+\mathrm{RS}}.
+\]
+\textbf{Use when.} You want a 0–100 momentum oscillator often used to summarize “recent up vs down pressure.”
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“In the last few periods, were moves mostly up or mostly down—and by how much?”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{RSIRecipe} (\texttt{id='rsi'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{MACD (\texttt{macd})}
+\begin{ClassroomBox}
+\textbf{Definition.} MACD line \(=\mathrm{EMA}_{\text{fast}}-\mathrm{EMA}_{\text{slow}}\). Signal line \(=\mathrm{EMA}(\text{MACD line})\). Histogram \(=\) difference.
+\textbf{Use when.} You want a compact trend/momentum summary based on two smoothing speeds.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Compare a fast trend line to a slow trend line. When the fast one pulls away, momentum is changing.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{MACDRecipe} (\texttt{id='macd'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Rolling volatility (\texttt{rolling\_vol})}
+\begin{ClassroomBox}
+\textbf{Definition.} Compute returns (often percent change), take rolling standard deviation \(\sigma_t\), and optionally annualize:
+\[
+\sigma^{(\text{ann})}_t=\sigma_t\sqrt{m},
+\]
+where \(m\) is periods per year (e.g., 252 trading days).
+\textbf{Use when.} You want a moving measure of variability/risk.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“How bumpy has this series been lately?”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{RollingVolatilityRecipe} (\texttt{id='rolling\_vol'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\subsection{Macro transforms}
+
+\begin{ConceptBox}{Inflation YoY (\texttt{inflation\_yoy})}
+\begin{ClassroomBox}
+\[
+\pi^{\text{YoY}}_t = 100\left(\frac{P_t}{P_{t-12}}-1\right).
+\]
+\textbf{Use when.} You want “inflation over the last year” from an index like CPI.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Compare today’s price index to the same month last year.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{InflationYoYRecipe} (\texttt{id='inflation\_yoy'}). Assumes monthly frequency (12 lags).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Inflation MoM annualized (\texttt{inflation\_mom\_ann})}
+\begin{ClassroomBox}
+\[
+\pi^{\text{MoM, ann}}_t = 1200\big(\log P_t-\log P_{t-1}\big).
+\]
+\textbf{Use when.} You want the one-month inflation rate expressed at an annual pace.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Take this month’s change and ask: if that kept happening every month, what yearly inflation would that imply?”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{InflationMoMAnnRecipe} (\texttt{id='inflation\_mom\_ann'}). Requires \(P_t>0\).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Growth QoQ annualized (\texttt{growth\_qoq\_ann})}
+\begin{ClassroomBox}
+\[
+g^{\text{QoQ, ann}}_t = 400\big(\log X_t-\log X_{t-1}\big).
+\]
+\textbf{Use when.} You want quarterly growth expressed at an annual rate (typical for GDP-style reporting).
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Turn the quarter’s growth into a ‘per-year’ number so it’s easier to compare.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{GrowthQoQAnnRecipe} (\texttt{id='growth\_qoq\_ann'}). Assumes adjacent rows are quarters.
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Spread (\texttt{spread}) and Real rate (\texttt{real\_rate})}
+\begin{ClassroomBox}
+\textbf{Spread.} \(s_t = a_t - b_t\). \quad \textbf{Real rate (ex-post approx).} \(r^{\text{real}}_t = i_t - \pi_t\).
+\textbf{Use when.} Spreads are common in term-structure/macro; real rates adjust nominal rates for inflation.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“A spread is just ‘this minus that.’ A real rate is ‘interest minus inflation.’”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipes: \texttt{SpreadRecipe} (\texttt{id='spread'}) and \texttt{RealRateRecipe} (\texttt{id='real\_rate'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\subsection{Econometrics}
+
+\begin{ConceptBox}{OLS regression (\texttt{ols})}
+\begin{ClassroomBox}
+\textbf{Model.} \(y = X\beta + \varepsilon\). OLS estimates \(\hat{\beta}\) by minimizing \(\sum_t \varepsilon_t^2\).
+\textbf{Use when.} You want a baseline linear “what predicts/explains \(y\)?” model with interpretable coefficients.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Fit the best straight-line relationship between \(y\) and the variables you think matter.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{OLSRecipe} (\texttt{id='ols'}) using \texttt{statsmodels}.
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{AR(1) / persistence regression (\texttt{ar1})}
+\begin{ClassroomBox}
+\[
+y_t = c + \phi y_{t-1} + \varepsilon_t.
+\]
+\textbf{Use when.} You want a simple persistence estimate; \(\phi\) near 1 means very persistent.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Does yesterday’s value do most of the work in predicting today?”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{AR1Recipe} (\texttt{id='ar1'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\begin{ConceptBox}{Local projections IRF (LP-IRF) (\texttt{lp\_irf})}
+\begin{ClassroomBox}
+\textbf{Idea.} For each horizon \(h\), run:
+\[
+y_{t+h} = \alpha_h + \beta_h \,\text{shock}_t + \gamma_h^\top \text{controls}_t + u_{t+h}.
+\]
+The impulse response at horizon \(h\) is \(\beta_h\), and plotting \(\{\beta_h\}_{h=0}^H\) traces the dynamic effect of a shock.
+\textbf{Use when.} You want a flexible IRF without committing to a full VAR system.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Ask a sequence of questions: if there’s a shock today, what happens to \(y\) next period? two periods out? three?”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{LocalProjectionIRFRecipe} (\texttt{id='lp\_irf'}).
+\end{WhereBox}
+\end{ConceptBox}
+
+\subsection{News sentiment}
+
+\begin{ConceptBox}{FinBERT daily sentiment (\texttt{news\_sentiment})}
+\begin{ClassroomBox}
+\textbf{Mechanism.} FinBERT classifies finance text into labels (POS/NEG/NEU) with confidence scores. This project maps labels to a signed score and aggregates to daily summaries (mean/sum, counts, and label shares).
+\textbf{Use when.} You want a daily sentiment time series from a set of news articles.
+\end{ClassroomBox}
+\begin{IntuitionBox}
+“Have a model read a bunch of headlines, score how positive vs negative they sound, then average that into one number per day.”
+\end{IntuitionBox}
+\begin{WhereBox}
+Recipe: \texttt{FinBERTDailySentimentRecipe} (\texttt{id='news\_sentiment'}), using \texttt{transformers} with \texttt{ProsusAI/finbert}.
+\end{WhereBox}
+\end{ConceptBox}
+
+\vspace{0.5em}\noindent\rule{\textwidth}{0.4pt}\vspace{0.5em}
+
+
+\section{Function-by-function reference}
+
+
+\subsection{\texttt{streamlit\_app.py} (UI, orchestration, rendering)}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_get\_singletons()}}
+\item \textbf{Technical}: Initializes long-lived objects in \texttt{st.session\_state} (config, \texttt{SQLiteStorage}, \texttt{JobRunner}) plus a bunch of UI default flags/fields; returns \texttt{(cfg, storage, runner)}.
+\item \textbf{Intuitive}: Streamlit reruns the script on every interaction; this function keeps “the app’s brain” from resetting each rerun.
+\item \textbf{Gotchas}: If you change \texttt{.env} values you usually need to restart Streamlit so \texttt{load\_config()} takes effect; schema init happens once per session.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_parse\_language\_list(raw)}}
+\item \textbf{Technical}: Parses comma-separated input into normalized lowercased language tokens for GDELT \texttt{sourcelang:} filters.
+\item \textbf{Intuitive}: Turns “english, spanish” into \texttt{["english","spanish"]}.
+\item \textbf{Gotchas}: No validation against GDELT’s supported language names.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_df\_with\_rank(df, start=1)}}
+\item \textbf{Technical}: Copies \texttt{df} and inserts a \texttt{"\#"} column with a 1-based integer rank for display.
+\item \textbf{Intuitive}: Adds a “row number” column without mutating the original dataframe.
+\item \textbf{Gotchas}: Rank is purely positional; it doesn’t sort.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_cols\_with\_visibility\_selector(cols, max\_visible=3, displayed\_count=2, session\_key, label=...)}}
+\item \textbf{Technical}: If too many series are selected, uses a Streamlit multiselect to choose \texttt{displayed\_count} of them; returns \texttt{(chosen, remaining)} for plotting + table.
+\item \textbf{Intuitive}: Prevents charts from getting unreadably crowded when many series are selected.
+\item \textbf{Gotchas}: Ensures at least one chosen column (falls back to the default).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_parse\_csv\_list(raw)}}
+\item \textbf{Technical}: Comma-splits, trims, uppercases; drops empty items.
+\item \textbf{Intuitive}: Standardizes ticker / series-id lists typed by the user.
+\item \textbf{Gotchas}: Uppercasing is good for tickers/FRED ids but may be surprising for other strings.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_update\_recent\_list(recent, used\_ids, max\_len=20)}}
+\item \textbf{Technical}: Implements LRU behavior: for each used id, remove existing occurrence then insert at front; truncates to \texttt{max\_len}.
+\item \textbf{Intuitive}: “Recently used series” stay at the top of selection lists.
+\item \textbf{Gotchas}: Mutates \texttt{recent} in place (which is fine because it’s a session\_state list).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_auto\_news\_query\_finance(tickers)}}
+\item \textbf{Technical}: Builds a minimal GDELT query like \texttt{(AAPL OR "Apple" OR MSFT OR "Microsoft")} using a small expansion map and deduping.
+\item \textbf{Intuitive}: Saves you from writing the news query manually for common tickers.
+\item \textbf{Gotchas}: Expansion map is partial; query is intentionally simple (may over/under-match).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_auto\_news\_query\_econ(series\_ids)}}
+\item \textbf{Technical}: Similar to finance, but maps common FRED ids to plain-English macro topics (e.g., \texttt{CPIAUCSL → inflation}) and ORs them.
+\item \textbf{Intuitive}: Converts “which macro series I’m studying” into “what to search in news.”
+\item \textbf{Gotchas}: Mapping is heuristic; users can override in the UI.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_job\_by\_id(storage, job\_id)}}
+\item \textbf{Technical}: Linear search over \texttt{storage.list\_jobs(limit=1000)} to find a matching \texttt{job\_id}.
+\item \textbf{Intuitive}: Fetch one job row when you only have its id.
+\item \textbf{Gotchas}: If there are >1000 jobs, the job may be missing from the limited list.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_artifact\_df(path)}}
+\item \textbf{Technical}: Thin wrapper around \texttt{pd.read\_csv(path)} for job artifacts.
+\item \textbf{Intuitive}: “Load the output CSV for a finished job.”
+\item \textbf{Gotchas}: No schema checking; exceptions are handled by callers.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_download\_df(df, label, file\_name)}}
+\item \textbf{Technical}: Uses \texttt{st.download\_button} to offer a CSV download of the dataframe.
+\item \textbf{Intuitive}: One-click “export this table.”
+\item \textbf{Gotchas}: CSV is encoded as UTF-8 bytes; large frames can be slow.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_parse\_cols(raw)}}
+\item \textbf{Technical}: Comma-splits and trims into a list of column names.
+\item \textbf{Intuitive}: Lets users type \texttt{CPIAUCSL, UNRATE} to specify columns.
+\item \textbf{Gotchas}: Case-sensitive matching later depends on dataframe column names.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_preferred\_market\_provider(market\_provider\_ids)}}
+\item \textbf{Technical}: Chooses \texttt{"fmp"} if present *and* \texttt{FINREC\_FMP\_API\_KEY} is set, else prefers \texttt{"yfinance"}, else first id.
+\item \textbf{Intuitive}: Defaults to the most reliable market source available.
+\item \textbf{Gotchas}: Only checks presence of an API key string, not whether it’s valid.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_filter\_df\_by\_date\_range(df, x\_col, start\_date, end\_date)}}
+\item \textbf{Technical}: Converts \texttt{df[x\_col]} to datetime; filters rows whose \texttt{.dt.date} is in \textbackslash\{\}([start,end]\textbackslash\{\}); returns a copy.
+\item \textbf{Intuitive}: Clips charts/tables to the date range you selected.
+\item \textbf{Gotchas}: If \texttt{x\_col} can’t be parsed, returns original \texttt{df} unchanged.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_split\_cols\_for\_secondary\_axis\_by\_scale(df, cols, ratio\_threshold=50.0)}}
+\item \textbf{Technical}: Computes median absolute magnitude per column; picks the largest-magnitude column as “base”; assigns columns to right axis if \textbackslash\{\}(\textbackslash\{\}text\{base\}/\textbackslash\{\}text\{col\} \textbackslash\{\}ge\textbackslash\{\}) threshold.
+\item \textbf{Intuitive}: Prevents “tiny” series from looking flat when plotted with huge-valued series.
+\item \textbf{Gotchas}: Heuristic—can misclassify when series have outliers or near-zero medians.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_plot\_df(df, x\_col, left\_cols, right\_cols\_override=None, ..., start\_date=None, end\_date=None)}}
+\item \textbf{Technical}: Applies date filtering (optional), determines right-axis columns either from \texttt{right\_cols\_override} or the UI “secondary axis” list, then calls \texttt{plot\_timeseries()} and renders with \texttt{st.plotly\_chart}.
+\item \textbf{Intuitive}: One standardized way to “take a dataframe and show a nice time-series chart.”
+\item \textbf{Gotchas}: If no chartable columns exist, it prints a caption and returns (no error).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_plot\_lp\_irf(df\_out, height=250, title=...)}}
+\item \textbf{Technical}: Validates LP-IRF output columns (\texttt{horizon}, \texttt{irf}, \texttt{ci\_low}, \texttt{ci\_high}), builds a Plotly figure with a filled confidence band and IRF line.
+\item \textbf{Intuitive}: Visualizes an impulse response function with uncertainty bands.
+\item \textbf{Gotchas}: Requires Plotly optional dependency; silently declines to plot if required columns are missing.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_wide\_from\_market\_artifacts(dfs\_by\_symbol, date\_col='date', value\_col='close', how='outer')}}
+\item \textbf{Technical}: For each symbol, extracts \texttt{[date,value]}, renames \texttt{value} to \texttt{\{SYM\}\_\{value\_col\}}, merges into a “wide” table on date.
+\item \textbf{Intuitive}: Turns many per-ticker CSVs into one merged dataframe for charting/comparison.
+\item \textbf{Gotchas}: Date parsing failures drop rows; missing symbols/columns are skipped.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_wide\_from\_macro\_artifacts(dfs\_by\_series, date\_col='date', value\_col='value', how='outer')}}
+\item \textbf{Technical}: Same wide-merge idea for macro series, then forward-fills each value column so mixed-frequency series plot continuously.
+\item \textbf{Intuitive}: Makes monthly CPI and weekly claims readable on the same merged chart.
+\item \textbf{Gotchas}: Forward-fill is a modeling choice (can be misleading if interpreted as “real” observations).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_dataset\_builder\_ui(cfg, storage, runner, reg, start\_date, end\_date, default\_fred\_series, default\_tickers)}}
+\item \textbf{Technical}: UI to fetch multiple macro/market series as jobs, track their completion, then submit a merge job that runs \texttt{build\_merged\_dataset(...)}.
+\item \textbf{Intuitive}: A guided workflow to build a single “analysis-ready” dataset without leaving the app.
+\item \textbf{Gotchas}: Uses many session\_state keys; relies on artifacts existing before merge is enabled.
+\item \textbf{Inner def \texttt{\_merge\_job\_fn(ctx)}}: logs merge parameters, calls \texttt{build\_merged\_dataset}, logs output shape, returns merged dataframe for artifact writing.
+\end{itemize}
+
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_render\_query\_and\_submit(mode, cfg, storage, runner, reg, start\_date, end\_date)}}
+\item \textbf{Technical}: Renders the top-half “inputs” UI for Finance/Econ modes, plus News options; on “Run” it submits provider jobs (market or macro, plus optional news) and stores a structured \texttt{latest\_run} dict in session\_state.
+\item \textbf{Intuitive}: The “control panel” that turns user choices into background jobs.
+\item \textbf{Gotchas}: Many branches; correctness depends on consistent request schemas expected by providers/recipes.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_render\_results(storage, runner, start\_date, end\_date, recession\_intervals)}}
+\item \textbf{Technical}: Reads \texttt{latest\_run}, lists recent jobs from SQLite, conditionally auto-refreshes while jobs are RUNNING, loads artifacts for SUCCEEDED jobs, and renders tables/charts; also triggers downstream recipe jobs (indicators/forecasts/models/sentiment) once inputs are ready.
+\item \textbf{Intuitive}: The “dashboard” that watches jobs finish and shows outputs as they appear.
+\item \textbf{Gotchas}: Job tables are paged (\texttt{limit=500}); artifacts might fail to load if files moved/deleted.
+\item \textbf{Inner def \texttt{\_forecast\_metrics(df\_fcst)}}: computes MAE/RMSE/MAPE on \texttt{segment=='test'} rows (requires \texttt{y}, \texttt{yhat}, \texttt{segment}).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Inner def \texttt{\_iter\_active\_job\_ids()}}: collects all job ids referenced by \texttt{latest\_run} and dataset-builder/usrec session keys; de-dupes.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Inner def \texttt{\_is\_job\_active(job\_id)}}: returns \texttt{True} if job exists and status is RUNNING.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Inner def \texttt{\_status\_badge(job\_id)}}: returns job status string (or UNKNOWN).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Inner def \texttt{\_show\_job\_error(job\_id)}}: when FAILED, shows stored traceback + last logs in an expander.
+\end{itemize}
+
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{main()}}
+\item \textbf{Technical}: Streamlit entrypoint: sets page config, initializes singletons, renders mode selector + date range + chart options + runtime config expander, optionally fetches USREC recession shading data, then calls \texttt{\_render\_query\_and\_submit} and \texttt{\_render\_results}.
+\item \textbf{Intuitive}: “Build the whole app page.”
+\item \textbf{Gotchas}: Validates \texttt{end\_date >= start\_date} and calls \texttt{st.stop()} on invalid input; depends on optional deps for some features (plotly, providers, models).
+\end{itemize}
+
+
+\subsection{\texttt{scripts/e2e\_smoke.py} (smoke test entrypoint)}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{main()}}
+\item \textbf{Technical}: Creates a temporary working dir, initializes \texttt{SQLiteStorage} + \texttt{JobRunner}, submits provider fetch jobs (market + news), waits/polls for SUCCEEDED, asserts artifacts exist and contain expected columns, then submits recipe jobs (SMA on market, inflation\_yoy + AR1 on FRED) and asserts outputs; finally shuts down the runner executor.
+\item \textbf{Intuitive}: A quick “does the whole pipeline work end-to-end with real network providers?” check.
+\item \textbf{Gotchas}: Requires network + optional deps (\texttt{.[market]}, \texttt{.[news]}, \texttt{.[macro]}, \texttt{.[econ]}); polling uses tight sleeps and a small job list limit; uses private attribute \texttt{runner.\_executor} for shutdown.
+\item \textbf{How to run}: \texttt{python scripts/e2e\_smoke.py}
+\end{itemize}
+
+
+\subsection{\texttt{src/finrec/config.py} (configuration)}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{load\_config()}}
+\item \textbf{Technical}: Calls \texttt{dotenv.load\_dotenv(override=False)} then reads \texttt{FINREC\_DB\_PATH} and \texttt{FINREC\_RESULTS\_DIR} with defaults (\texttt{data/finrec.db}, \texttt{data/results}); creates parent directories; returns \texttt{AppConfig(db\_path, results\_dir)}.
+\item \textbf{Intuitive}: Central place to decide “where do we store the SQLite DB and output CSVs?”
+\item \textbf{Gotchas}: \texttt{override=False} means existing environment variables win over \texttt{.env}; directory creation happens at load time.
+\end{itemize}
+
+
+\subsection{\texttt{src/finrec/jobs/runner.py} (job execution)}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{JobContext.log(level, message)}}
+\item \textbf{Technical}: Delegates to \texttt{SQLiteStorage.append\_log(job\_id, level, message)}.
+\item \textbf{Intuitive}: A tiny logger that routes job logs into SQLite.
+\item \textbf{Gotchas}: Logging is synchronous (each call writes to SQLite).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{JobRunner.\_\_init\_\_(storage, results\_dir)}}
+\item \textbf{Technical}: Stores \texttt{storage}, normalizes \texttt{results\_dir} to a \texttt{Path}, and creates a \texttt{ThreadPoolExecutor(max\_workers=2)} to run jobs concurrently.
+\item \textbf{Intuitive}: Sets up the “background worker” pool.
+\item \textbf{Gotchas}: Only 2 workers—fast enough for a toy app; slow providers/models can block throughput.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{JobRunner.submit(kind, provider\_kind, provider\_id, request, fn) -> job\_id}}
+\item \textbf{Technical}: Creates a job row in SQLite (\texttt{status=QUEUED}), then submits an inner \texttt{\_run()} to the thread pool:
+\item set status RUNNING
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item call \texttt{df = fn(ctx)}
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item if \texttt{df} is not \texttt{None}, write \texttt{results\_dir/\{job\_id\}.csv} and store output\_path
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item set status SUCCEEDED; on exception set FAILED, store traceback in \texttt{jobs.error}, and log ERROR lines.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Intuitive}: “Run this task later and keep track of its progress + output.”
+\item \textbf{Gotchas}: Artifact writing is “best effort”—if \texttt{df.to\_csv} fails, the whole job fails; \texttt{request} is persisted as JSON for debugging/repro.
+\item \textbf{Inner def \texttt{\_run()}}: the actual job lifecycle wrapper that provides standardized status/log/error handling.
+\end{itemize}
+
+
+
+\subsection{\texttt{src/finrec/storage/sqlite.py} (job persistence)}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_utc\_now\_iso()}}
+\item \textbf{Technical}: Returns a UTC ISO timestamp to seconds (e.g., \texttt{2026-02-15T12:34:56+00:00}).
+\item \textbf{Intuitive}: Standard timestamp format for jobs/logs.
+\item \textbf{Gotchas}: Second-level precision (good enough for UI).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.\_\_init\_\_(db\_path)}}
+\item \textbf{Technical}: Stores the path to the SQLite database file.
+\item \textbf{Intuitive}: “Point storage at a DB file.”
+\item \textbf{Gotchas}: Doesn’t create schema; call \texttt{init\_schema()} first.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.\_connect()}}
+\item \textbf{Technical}: Opens a sqlite3 connection with \texttt{check\_same\_thread=False} and \texttt{row\_factory=sqlite3.Row}.
+\item \textbf{Intuitive}: “Give me a connection that can be used from job threads.”
+\item \textbf{Gotchas}: SQLite has concurrency limits; this app mitigates by small \texttt{max\_workers}.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.init\_schema()}}
+\item \textbf{Technical}: Creates \texttt{jobs} and \texttt{job\_logs} tables if missing. If \texttt{jobs} exists but its column list doesn’t match the expected schema, it drops both tables and recreates them.
+\item \textbf{Intuitive}: “Make sure the database has the right tables to track jobs.”
+\item \textbf{Gotchas}: Schema mismatch triggers a destructive reset (drops existing job history/logs).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.create\_job(job\_id, kind, provider\_kind, provider\_id, request)}}
+\item \textbf{Technical}: Inserts a new row into \texttt{jobs} with timestamps, \texttt{status='QUEUED'}, and \texttt{request\_json=json.dumps(request, sort\_keys=True)}.
+\item \textbf{Intuitive}: Creates a new “job record” before work starts.
+\item \textbf{Gotchas}: \texttt{request} must be JSON-serializable.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.set\_status(job\_id, status)}}
+\item \textbf{Technical}: Updates \texttt{jobs.status} and \texttt{updated\_at}.
+\item \textbf{Intuitive}: Moves jobs through QUEUED → RUNNING → SUCCEEDED/FAILED.
+\item \textbf{Gotchas}: Status is free-form text; conventions are enforced by \texttt{JobRunner}.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.set\_output\_path(job\_id, output\_path)}}
+\item \textbf{Technical}: Stores the artifact path (string) in \texttt{jobs.output\_path}.
+\item \textbf{Intuitive}: Links a job to its output CSV file.
+\item \textbf{Gotchas}: Path is stored as text; file might be moved/deleted later.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.set\_error(job\_id, error)}}
+\item \textbf{Technical}: Stores an error string (often exception + traceback) in \texttt{jobs.error}.
+\item \textbf{Intuitive}: Makes failures explainable in the UI.
+\item \textbf{Gotchas}: Can be large; UI truncates when displayed.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.append\_log(job\_id, level, message)}}
+\item \textbf{Technical}: Inserts one row into \texttt{job\_logs} with timestamp, level, message.
+\item \textbf{Intuitive}: Keeps a timeline of what the job did.
+\item \textbf{Gotchas}: Frequent logging can be slow (SQLite writes); keep messages lightweight.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.list\_jobs(limit=50) -> list[JobRow]}}
+\item \textbf{Technical}: \texttt{SELECT * FROM jobs ORDER BY created\_at DESC LIMIT ?} and maps rows to \texttt{JobRow} dataclass instances.
+\item \textbf{Intuitive}: “Show me recent jobs.”
+\item \textbf{Gotchas}: Limit can hide older job ids referenced elsewhere (if callers use too-small limits).
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SQLiteStorage.list\_logs(job\_id, limit=200) -> list[LogRow]}}
+\item \textbf{Technical}: Fetches job logs ordered by insertion id ascending.
+\item \textbf{Intuitive}: “Show me what happened during job X.”
+\item \textbf{Gotchas}: UI often shows only the tail; increase \texttt{limit} for deeper debugging.
+\end{itemize}
+
+
+\subsection{\texttt{src/finrec/providers/**} (data providers)}
+
+
+\subsubsection{\texttt{providers/utils/optional.py} (optional dependency gating)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{optional\_import(module\_name)}}
+\item \textbf{Technical}: \texttt{importlib.import\_module}; returns module or \texttt{None}; catches all exceptions.
+\item \textbf{Intuitive}: “Try to import it, but don’t crash if it’s missing.”
+\item \textbf{Gotchas}: Catches *any* exception (not just ImportError), so real import-time bugs can be masked.
+\item \textbf{\texttt{require\_optional(module\_name, extra\_hint)}}
+\item \textbf{Technical}: Calls \texttt{optional\_import}; if missing, raises \texttt{ImportError} with an install hint like \texttt{pip install -e ".[dev,market]"}.
+\item \textbf{Intuitive}: Turns “module not installed” into a friendly, actionable error.
+\item \textbf{Gotchas}: The extras list is heuristic: always includes \texttt{dev} plus the provided hint.
+\end{itemize}
+
+
+\subsubsection{\texttt{providers/registry.py} (dynamic provider registration)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{ProviderRegistry.\_key(kind, provider\_id)}}
+\item \textbf{Technical}: Builds stable dict key as \texttt{"\{kind\}:\{provider\_id\}"}.
+\item \textbf{Intuitive}: Namespaces provider ids by type (market vs macro vs news).
+\item \textbf{Gotchas}: \texttt{provider\_id} must be unique *within* a kind.
+\item \textbf{\texttt{ProviderRegistry.register(provider)}}
+\item \textbf{Technical}: Inserts provider into internal dict by key derived from \texttt{provider.meta}.
+\item \textbf{Intuitive}: “Add this provider implementation to the app.”
+\item \textbf{Gotchas}: Registration overwrites silently if keys collide.
+\item \textbf{\texttt{ProviderRegistry.list(kind)}}
+\item \textbf{Technical}: Filters registered providers by \texttt{meta.kind}.
+\item \textbf{Intuitive}: “What market providers are available right now?”
+\item \textbf{Gotchas}: Order is dict iteration order (insertion order).
+\item \textbf{\texttt{ProviderRegistry.get(kind, provider\_id)}}
+\item \textbf{Technical}: Lookup by key; raises \texttt{KeyError} if missing.
+\item \textbf{Intuitive}: “Give me the specific provider implementation requested by UI.”
+\item \textbf{Gotchas}: The app relies on \texttt{get\_registry()} having registered providers first.
+\item \textbf{\texttt{\_try\_register\_real\_providers(reg)}}
+\item \textbf{Technical}: Best-effort registration: checks optional imports (yfinance/requests/pandas\_datareader) and conditionally registers \texttt{YFinanceProvider}, \texttt{FMPProvider}, \texttt{FREDProvider}, \texttt{GDELTProvider}; wraps each block in try/except and never raises.
+\item \textbf{Intuitive}: Providers “appear” only if you installed the corresponding extras.
+\item \textbf{Gotchas}: Swallows exceptions, so a broken provider import can silently vanish from the UI.
+\item \textbf{\texttt{get\_registry()}}
+\item \textbf{Technical}: Lazy-initializes a module-global registry singleton and calls \texttt{\_try\_register\_real\_providers}.
+\item \textbf{Intuitive}: “One provider registry for the whole app.”
+\item \textbf{Gotchas}: Registry is cached; changing installed deps mid-run won’t update the registry without restart.
+\end{itemize}
+
+
+\subsubsection{\texttt{providers/market/yfinance.py} (Yahoo Finance via yfinance)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_throttle\_yfinance(min\_interval\_s=3.0)}}
+\item \textbf{Technical}: Global lock + last-request timestamp; sleeps to enforce minimum spacing between requests across threads.
+\item \textbf{Intuitive}: Reduces rate-limit errors by avoiding bursts.
+\item \textbf{Gotchas}: Process-wide throttle only (doesn’t coordinate across machines/processes).
+\item \textbf{\texttt{YFinanceProvider.fetch(request, ctx)}}
+\item \textbf{Technical}: Reads \texttt{symbol}, \texttt{interval}, and either a date range (\texttt{start\_date/end\_date}) or a fallback \texttt{n}; calls \texttt{Ticker(symbol).history(...)} with retry/backoff on \texttt{YFRateLimitError}; normalizes output into columns like \texttt{date}, \texttt{symbol}, \texttt{open/high/low/close/volume}.
+\item \textbf{Intuitive}: “Download price bars for a ticker and return a clean dataframe.”
+\item \textbf{Gotchas}: Yahoo throttling is common; intraday vs daily can change the timestamp column name; backoff can make jobs slow.
+\end{itemize}
+
+
+\subsubsection{\texttt{providers/market/fmp.py} (Financial Modeling Prep, with fallback)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_is\_fmp\_premium\_symbol\_error(status\_code, body)}}
+\item \textbf{Technical}: Detects a common free-tier failure mode (HTTP 402 and message containing subscription/premium hints).
+\item \textbf{Intuitive}: Recognize “this ticker needs a paid FMP plan.”
+\item \textbf{Gotchas}: String-matching heuristic; could miss new message formats.
+\item \textbf{\texttt{FMPProvider.fetch(request, ctx)}}
+\item \textbf{Technical}: Requires \texttt{requests} and \texttt{FINREC\_FMP\_API\_KEY}; pulls daily EOD history from the “stable” endpoint; supports date-range mode or tail(n) fallback; parses JSON list/dict shapes; normalizes to \texttt{date}, \texttt{symbol}, and numeric OHLCV; on premium-symbol error, falls back to \texttt{YFinanceProvider.fetch}.
+\item \textbf{Intuitive}: Prefer a paid API (more stable) but gracefully degrade to Yahoo when a ticker isn’t covered.
+\item \textbf{Gotchas}: Only supports daily bars (ignores non-\texttt{1d} intervals); missing API key is a hard error; fallback requires yfinance installed.
+\end{itemize}
+
+
+\subsubsection{\texttt{providers/macro/fred.py} (FRED via pandas-datareader)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{FREDProvider.fetch(request, ctx)}}
+\item \textbf{Technical}: Requires \texttt{pandas\_datareader.data}; reads \texttt{series\_id} and either date range or fallback \texttt{n}; calls \texttt{DataReader(series\_id, "fred", start, end)}; outputs long-form dataframe with \texttt{date} (string), \texttt{series\_id}, \texttt{value}.
+\item \textbf{Intuitive}: “Get a macro series from FRED and return it in a consistent schema.”
+\item \textbf{Gotchas}: FRED has no future data (end\_date is clamped to today); missing data raises; output is long-form (not wide).
+\end{itemize}
+
+
+\subsubsection{\texttt{providers/news/gdelt.py} (GDELT doc API)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_gdelt\_dt(d, is\_end)}}
+\item \textbf{Technical}: Formats a \texttt{date} into GDELT’s \texttt{YYYYMMDDHHMMSS} with start-of-day or end-of-day time.
+\item \textbf{Intuitive}: Converts “date range” into GDELT’s timestamp parameters.
+\item \textbf{Gotchas}: Day-level granularity only.
+\item \textbf{\texttt{\_normalize\_gdelt\_query(q)}}
+\item \textbf{Technical}: Trims query; wraps top-level OR groups in parentheses if not already.
+\item \textbf{Intuitive}: Makes simple OR queries valid under GDELT syntax rules.
+\item \textbf{Gotchas}: Intentionally minimal to avoid breaking advanced user queries.
+\item \textbf{\texttt{\_append\_sourcelang\_filter(query, languages)}}
+\item \textbf{Technical}: Appends \texttt{sourcelang:<lang>} filters; OR-groups multiple languages.
+\item \textbf{Intuitive}: “Restrict results to English (or a set of languages).”
+\item \textbf{Gotchas}: Language tokens must match GDELT’s expected names.
+\item \textbf{\texttt{\_throttle\_gdelt(min\_interval\_s=5.0)}}
+\item \textbf{Technical}: Global lock + last-request timestamp; enforces ≤1 request per 5 seconds across threads.
+\item \textbf{Intuitive}: Plays nicely with GDELT’s published rate limit.
+\item \textbf{Gotchas}: Still subject to 429s if other clients share your IP or limits change.
+\item \textbf{\texttt{GDELTProvider.fetch(request, ctx)}}
+\item \textbf{Technical}: Requires \texttt{requests}; validates \texttt{query}, \texttt{start\_date}, \texttt{end\_date}; builds request for \texttt{mode=ArtList} with \texttt{maxrecords<=250}; retries on 429 with waits; handles occasional “status=200 but non-JSON body” by retrying; outputs dataframe with article metadata (\texttt{ts}, \texttt{date}, \texttt{query}, \texttt{language}, \texttt{title}, \texttt{snippet}, \texttt{source}, \texttt{url}).
+\item \textbf{Intuitive}: “Search recent articles about your topic and return a table you can read/score.”
+\item \textbf{Gotchas}: \texttt{maxrecords} is capped; titles may be missing and get filtered out; API reliability varies.
+\end{itemize}
+
+
+\subsection{\texttt{src/finrec/ui/**}, \texttt{src/finrec/viz/**}, \texttt{src/finrec/datasets/**}}
+
+
+\subsubsection{\texttt{ui/pipelines.py} (turn providers/recipes into jobs)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{submit\_provider\_fetch(runner, kind, provider\_id, request) -> job\_id}}
+\item \textbf{Technical}: Looks up provider from \texttt{get\_registry().get(kind, provider\_id)}; defines \texttt{job\_fn(ctx)} that logs start/end and calls \texttt{provider.fetch(request, ctx)}; submits through \texttt{runner.submit(kind='provider\_fetch', ...)}.
+\item \textbf{Intuitive}: “Run a provider fetch in the background and store its CSV artifact.”
+\item \textbf{Gotchas}: Provider selection must exist in the registry; request schema is provider-specific.
+\item \textbf{Inner def \texttt{job\_fn(ctx)}}: wraps the provider call with standardized logging and returns the dataframe artifact.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{submit\_recipe\_run(runner, input\_job\_id, input\_path, recipe\_id, params) -> job\_id}}
+\item \textbf{Technical}: Fetches recipe from \texttt{get\_recipe\_registry().get(recipe\_id)}; defines \texttt{job\_fn(ctx)} that loads the input artifact CSV, calls \texttt{recipe.run(df\_in, params, ctx)}, returns output df; submits through \texttt{runner.submit(kind='recipe\_run', provider\_kind='recipe', ...)}.
+\item \textbf{Intuitive}: “Take the output of one job and run a transformation/model on it.”
+\item \textbf{Gotchas}: Assumes \texttt{input\_path} points to a readable CSV; recipe expects specific columns depending on type.
+\item \textbf{Inner def \texttt{job\_fn(ctx)}}: enforces the ‘load input → run recipe → return df’ pattern.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{get\_jobs\_by\_id(storage, limit=1000) -> dict[job\_id, JobRow]}}
+\item \textbf{Technical}: Calls \texttt{storage.list\_jobs(limit=limit)} and builds a dict keyed by \texttt{job\_id}.
+\item \textbf{Intuitive}: Makes it easy to look up job rows repeatedly during rendering.
+\item \textbf{Gotchas}: Limit applies—older jobs may not be present.
+\end{itemize}
+
+
+\subsubsection{\texttt{ui/timeseries\_catalog.py} (curated option lists)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_build\_options(catalog, by\_id, category\_priority, recent\_ids, custom\_ids) -> list[SeriesOption]}}
+\item \textbf{Technical}: Produces an ordered list: (1) recent ids (preserving recency), (2) custom ids not in catalog, (3) remaining catalog sorted by (category priority, per-item priority, id).
+\item \textbf{Intuitive}: “Put what you used recently at the top, but still offer a curated list.”
+\item \textbf{Gotchas}: Unknown ids become \texttt{SeriesOption(id, id, 'Other', 99)}.
+\item \textbf{\texttt{build\_finance\_options(recent\_ids, custom\_ids)}}
+\item \textbf{Technical}: Calls \texttt{\_build\_options} with the finance catalog + priorities.
+\item \textbf{Intuitive}: Builds the ticker dropdown list.
+\item \textbf{Gotchas}: Assumes ids are ticker-like (uppercased earlier).
+\item \textbf{\texttt{build\_econ\_options(recent\_ids, custom\_ids)}}
+\item \textbf{Technical}: Calls \texttt{\_build\_options} with the econ catalog + priorities.
+\item \textbf{Intuitive}: Builds the FRED series-id dropdown list.
+\item \textbf{Gotchas}: Same “unknown ids become Other” behavior.
+\end{itemize}
+
+
+\subsubsection{\texttt{viz/plotly\_timeseries.py} (Plotly figure construction)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{build\_recession\_intervals(usrec\_df) -> list[(start,end)]}}
+\item \textbf{Technical}: Accepts wide (\texttt{date},\texttt{USREC}) or long (\texttt{date},\texttt{value}) recession indicator; finds contiguous periods where indicator == 1; returns inclusive (start,end) timestamp tuples.
+\item \textbf{Intuitive}: Converts the “USREC = 1 means recession” series into shaded blocks for charts.
+\item \textbf{Gotchas}: Requires clean \texttt{date} parsing; value coercion treats only exact 1 as recession.
+\item \textbf{\texttt{plot\_timeseries(df, left\_cols, right\_cols=None, ..., recession\_intervals=None, log\_y\_left=False, log\_y\_right=False) -> Figure}}
+\item \textbf{Technical}: Validates inputs; coerces x to datetime when possible (keeps numeric x for IRFs); plots left series (and optional right series on secondary axis); applies unified hover, axis labels, optional log scaling; if \texttt{recession\_intervals} and x is datetime, adds shaded vrects.
+\item \textbf{Intuitive}: A reusable “nice chart” builder for both time-series and numeric-horizon plots.
+\item \textbf{Gotchas}: Requires optional Plotly deps (\texttt{.[dev]}); date coercion can drop rows; right\_cols are filtered to avoid duplicates.
+\end{itemize}
+
+
+\subsubsection{\texttt{datasets/merge.py} (artifact merging)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{build\_merged\_dataset(inputs, merge\_how='outer'|'inner', ffill=False, log=None) -> pd.DataFrame}}
+\item \textbf{Technical}: For each input spec (CSV path, date\_col, value\_col, alias): loads CSV, coerces date/value, keeps one row per date, merges sequentially on \texttt{date}; optionally forward-fills after merge.
+\item \textbf{Intuitive}: “Stitch many single-series artifacts into one analysis dataset.”
+\item \textbf{Gotchas}: Schema must match the spec; forward-fill changes interpretation; duplicate dates are dropped per input.
+\item \textbf{Inner def \texttt{\_log(level,msg)}}: optional callback wrapper used to log progress to job logs.
+\end{itemize}
+
+
+
+\subsection{\texttt{src/finrec/recipes/**} (transformations and models)}
+
+
+\subsubsection{Common recipe contract (what every recipe does)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{Input}: a dataframe loaded from a prior job’s artifact (usually a provider output).
+\item \textbf{Params}: a dict (stringly-typed in UI) controlling columns/windows/hyperparameters.
+\item \textbf{Output}: a dataframe that will be written as a new CSV artifact.
+\item \textbf{Side effects}: should only log via \texttt{ctx.log(...)}; no global state except where explicitly cached (FinBERT pipeline).
+\end{itemize}
+
+
+\subsubsection{\texttt{recipes/registry.py} (recipe registration)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{RecipeRegistry.register(recipe)}}
+\item \textbf{Technical}: Stores recipe object in \texttt{\_recipes} keyed by \texttt{recipe.meta.id}.
+\item \textbf{Intuitive}: “Make this recipe selectable/runnable.”
+\item \textbf{Gotchas}: Overwrites silently if ids collide.
+\item \textbf{\texttt{RecipeRegistry.list()}}
+\item \textbf{Technical}: Returns list of recipe instances.
+\item \textbf{Intuitive}: “Which recipes exist?”
+\item \textbf{Gotchas}: Ordering follows insertion order in \texttt{get\_recipe\_registry()}.
+\item \textbf{\texttt{RecipeRegistry.get(recipe\_id)}}
+\item \textbf{Technical}: Dict lookup; raises \texttt{KeyError} if missing.
+\item \textbf{Intuitive}: “Give me the implementation for recipe X.”
+\item \textbf{Gotchas}: Recipe ids must match what UI submits.
+\item \textbf{\texttt{get\_recipe\_registry()}}
+\item \textbf{Technical}: Lazy singleton; instantiates and registers all built-in recipes (transforms, indicators, macro, econ, news, forecasting).
+\item \textbf{Intuitive}: Central “menu” of capabilities.
+\item \textbf{Gotchas}: Some recipes require optional deps at runtime; they are still registered, but will error with \texttt{require\_optional(...)} if deps aren’t installed.
+\end{itemize}
+
+
+\subsubsection{\texttt{recipes/forecast/\_utils.py} (forecasting utilities and standardized schema)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_parse\_dates(df, date\_col)}}
+\item \textbf{Technical}: Parses datetimes with UTC, errors->NaT; requires at least one valid datetime; returns timezone-naive UTC timestamps for arithmetic.
+\item \textbf{Intuitive}: “Get a clean timeline from the dataframe.”
+\item \textbf{Gotchas}: If all dates fail to parse, forecasting aborts early.
+\item \textbf{\texttt{\_infer\_step(dates)}}
+\item \textbf{Technical}: Uses median spacing to infer a future-step cadence: month (\textasciitilde{}30d), quarter (\textasciitilde{}90d), year (\textasciitilde{}365d), week (\textasciitilde{}7d), else rounded day count.
+\item \textbf{Intuitive}: “How far apart are observations—daily? monthly? quarterly?”
+\item \textbf{Gotchas}: Heuristic; irregular time series can infer weird steps.
+\item \textbf{\texttt{\_make\_future\_dates(last\_date, horizon, step)}}
+\item \textbf{Technical}: Adds \texttt{step} repeatedly to generate \texttt{horizon} timestamps after \texttt{last\_date}.
+\item \textbf{Intuitive}: Builds the forecast x-axis.
+\item \textbf{Gotchas}: \texttt{DateOffset(months=1)} respects calendar months (not fixed days).
+\item \textbf{\texttt{\_coerce\_numeric(series, name)}}
+\item \textbf{Technical}: \texttt{pd.to\_numeric(..., errors='coerce')}; errors if all NaN.
+\item \textbf{Intuitive}: Ensure the target is actually numeric.
+\item \textbf{Gotchas}: Mixed strings become NaN and may shrink usable sample.
+\item \textbf{\texttt{build\_target\_series(df, date\_col, y\_col, transform='none'|'log\_return') -> ForecastFrame}}
+\item \textbf{Technical}: Sorts by date; builds numeric \texttt{y}; optionally transforms to log returns; returns a \texttt{ForecastFrame} containing standardized \texttt{df} with \texttt{date} and \texttt{y}, plus \texttt{date\_index} and the \texttt{target} label.
+\item \textbf{Intuitive}: “Turn raw columns into the exact series we want to forecast.”
+\item \textbf{Gotchas}: Log returns require positive values; nonpositive values become NaN and can reduce sample size.
+\item \textbf{\texttt{split\_train\_test(dates, y, test\_size)}}
+\item \textbf{Technical}: Supports \texttt{test\_size} as fraction or int; enforces minimum train length; returns \texttt{(train\_dates, train\_y, test\_dates, test\_y)}.
+\item \textbf{Intuitive}: Split history into “fit” vs “evaluate” segments.
+\item \textbf{Gotchas}: Small samples are rejected (\texttt{n<10}).
+\item \textbf{\texttt{build\_forecast\_output(...) -> pd.DataFrame}}
+\item \textbf{Technical}: Builds a standardized long-form output with columns: \texttt{date}, \texttt{y}, \texttt{yhat}, \texttt{segment} in \{train,test,forecast\}, plus \texttt{method} and \texttt{target}; optionally adds \texttt{yhat\_lower/yhat\_upper} bands.
+\item \textbf{Intuitive}: Makes every forecast recipe produce the same shape so the UI can render them uniformly.
+\item \textbf{Gotchas}: Strict length checks to prevent silent misalignment; sorts by date and segment order.
+\end{itemize}
+
+
+\subsubsection{Forecast recipes (all output the \texttt{build\_forecast\_output} schema)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{NaiveForecastRecipe.run(df, params, ctx)}** (\texttt{id='forecast\_naive'})}
+\item \textbf{Technical}: Uses last non-NaN training value as constant prediction for both test and future horizon.
+\item \textbf{Intuitive}: “Tomorrow equals today” baseline.
+\item \textbf{Gotchas}: If training series becomes empty after preprocessing, it errors.
+\item \textbf{\texttt{DriftForecastRecipe.run(df, params, ctx)}** (\texttt{id='forecast\_drift'})}
+\item \textbf{Technical}: Computes linear drift from first→last training value; forecasts by extending that line.
+\item \textbf{Intuitive}: Baseline with a trend.
+\item \textbf{Gotchas}: Needs ≥2 non-NaN training points.
+\item \textbf{Inner def \texttt{\_path(steps)}}: generates the step-ahead drift trajectory from the last training value.
+\end{itemize}
+
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{ETSForecastRecipe.run(df, params, ctx)}** (\texttt{id='forecast\_ets'})}
+\item \textbf{Technical}: Requires \texttt{statsmodels.tsa.holtwinters}; fits Holt-Winters exponential smoothing on training; forecasts \texttt{len(test)+horizon}.
+\item \textbf{Intuitive}: Smooths level/trend/seasonality and extrapolates.
+\item \textbf{Gotchas}: Needs ≥10 training obs; seasonality params must match cadence (e.g., 12 for monthly).
+\item \textbf{\texttt{ARIMAForecastRecipe.run(df, params, ctx)}** (\texttt{id='forecast\_arima'})}
+\item \textbf{Technical}: Requires \texttt{statsmodels} SARIMAX; grid-searches small ARIMA(p,d,q) over AIC; forecasts \texttt{len(test)+horizon}; attempts confidence intervals via \texttt{conf\_int(alpha=...)}.
+\item \textbf{Intuitive}: “Let the data pick a simple ARIMA structure, then project forward.”
+\item \textbf{Gotchas}: Needs ≥20 training obs; many orders can fail—logs warnings; CI may be unavailable.
+\item \textbf{\texttt{\_make\_features(window, include\_stats)}}
+\item \textbf{Technical}: Converts a lag window into feature vector (raw lags + optional mean/std).
+\item \textbf{Intuitive}: “Turn last N values into model inputs.”
+\item \textbf{Gotchas}: Stats features can help linear models but may hurt others.
+\item \textbf{\texttt{\_build\_supervised(y, lookback, include\_stats) -> (X,y)}}
+\item \textbf{Technical}: Drops NaNs, builds row \textbackslash\{\}(t\textbackslash\{\}) from lags \textbackslash\{\}([t-lookback, ..., t-1]\textbackslash\{\}) predicting \textbackslash\{\}(y\_t\textbackslash\{\}).
+\item \textbf{Intuitive}: Creates a regression dataset from a single time series.
+\item \textbf{Gotchas}: Needs enough history: \texttt{n > lookback + 5}.
+\item \textbf{\texttt{\_recursive\_predict(model, init\_window, steps, include\_stats)}}
+\item \textbf{Technical}: Predicts one step ahead repeatedly, appending predictions into the window to forecast multiple steps.
+\item \textbf{Intuitive}: “Use the model’s own output as the next input” multi-step forecasting.
+\item \textbf{Gotchas}: Error accumulation is common in recursive forecasts.
+\item \textbf{\texttt{RidgeLagForecastRecipe.run(df, params, ctx)}** (\texttt{id='forecast\_ridge\_lags'})}
+\item \textbf{Technical}: Requires sklearn; fits \texttt{StandardScaler + Ridge(alpha)} on lag features; uses recursive prediction for \texttt{len(test)+horizon}.
+\item \textbf{Intuitive}: A lightweight ML forecaster using recent history as features.
+\item \textbf{Gotchas}: Feature/target build drops NaNs; recursive strategy can drift.
+\item \textbf{\texttt{RandomForestLagForecastRecipe.run(df, params, ctx)}** (\texttt{id='forecast\_rf\_lags'})}
+\item \textbf{Technical}: Requires sklearn; fits \texttt{RandomForestRegressor}; forecasts via the same recursive routine.
+\item \textbf{Intuitive}: Nonlinear ML baseline for lag-based forecasting.
+\item \textbf{Gotchas}: Can be slower; still recursive multi-step.
+\end{itemize}
+
+
+\subsubsection{Time-series transforms}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{LogReturnsRecipe.run(df, params, ctx)}** (\texttt{id='log\_returns'})}
+\item \textbf{Technical}: Computes \texttt{log(p\_t)-log(p\_\{t-1\})} from \texttt{price\_col}; warns if nonpositive values; writes to \texttt{out\_col}.
+\item \textbf{Intuitive}: Converts prices into (approx) continuously-compounded returns.
+\item \textbf{Gotchas}: Nonpositive prices become NaN; diff shifts by one.
+\item \textbf{\texttt{RollingZScoreRecipe.run(df, params, ctx)}** (\texttt{id='rolling\_zscore'})}
+\item \textbf{Technical}: Rolling mean/std (ddof=0) and z-score \texttt{(x-mu)/sd} with \texttt{min\_periods ~ window/3}.
+\item \textbf{Intuitive}: Measures “how unusual is the current value vs recent history?”
+\item \textbf{Gotchas}: When sd≈0, z can explode to inf/NaN.
+\end{itemize}
+
+
+\subsubsection{Technical indicators}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{SimpleMovingAverageRecipe.run(df, params, ctx)}** (\texttt{id='sma'})}
+\item \textbf{Technical}: Rolling mean over \texttt{window} of \texttt{value\_col}; writes to \texttt{out\_col}.
+\item \textbf{Intuitive}: Smooth trend line.
+\item \textbf{Gotchas}: Early rows have NaNs due to windowing.
+\item \textbf{\texttt{ExponentialMovingAverageRecipe.run(df, params, ctx)}** (\texttt{id='ema'})}
+\item \textbf{Technical}: Exponentially-weighted moving average with \texttt{span}; writes to \texttt{out\_col}.
+\item \textbf{Intuitive}: Smoother that reacts faster to recent moves than SMA.
+\item \textbf{Gotchas}: Choice of \texttt{span} changes lag/responsiveness.
+\item \textbf{\texttt{RSIRecipe.run(df, params, ctx)}** (\texttt{id='rsi'})}
+\item \textbf{Technical}: Uses price differences; computes gains/losses; applies Wilder-style smoothing via EMA(alpha=1/window); outputs 0–100 RSI.
+\item \textbf{Intuitive}: Momentum oscillator—how strong were recent up moves vs down moves?
+\item \textbf{Gotchas}: If avg\_loss≈0, RSI can saturate near 100.
+\item \textbf{\texttt{MACDRecipe.run(df, params, ctx)}** (\texttt{id='macd'})}
+\item \textbf{Technical}: Computes EMA(fast) - EMA(slow) as MACD line; EMA(signal) of that as signal; histogram is difference; writes \texttt{\{prefix\}\_line/\_signal/\_hist}.
+\item \textbf{Intuitive}: Trend/momentum indicator based on two moving averages.
+\item \textbf{Gotchas}: Defaults (12,26,9) assume daily-ish cadence; different frequencies may need retuning.
+\item \textbf{\texttt{RollingVolatilityRecipe.run(df, params, ctx)}** (\texttt{id='rolling\_vol'})}
+\item \textbf{Technical}: Computes simple returns \texttt{pct\_change()}, rolling std, optionally annualizes by \textbackslash\{\}(\textbackslash\{\}sqrt\{periods\textbackslash\{\}\_per\textbackslash\{\}\_year\}\textbackslash\{\}); writes to \texttt{out\_col}.
+\item \textbf{Intuitive}: A rolling measure of “how bumpy is the series?”
+\item \textbf{Gotchas}: Annualization assumes correct \texttt{periods\_per\_year} for your frequency.
+\end{itemize}
+
+
+\subsubsection{Macro transforms}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{InflationYoYRecipe.run(df, params, ctx)}** (\texttt{id='inflation\_yoy'})}
+\item \textbf{Technical}: \texttt{100*(value/value.shift(12)-1)}; replaces ±inf with NA; adds \texttt{out\_col}.
+\item \textbf{Intuitive}: Year-over-year inflation rate from an index level.
+\item \textbf{Gotchas}: Assumes monthly cadence (12 lags); wrong frequency breaks interpretation.
+\item \textbf{\texttt{InflationMoMAnnRecipe.run(df, params, ctx)}** (\texttt{id='inflation\_mom\_ann'})}
+\item \textbf{Technical}: \texttt{1200*(log(value)-log(value.shift(1)))} for positive \texttt{value}; adds \texttt{out\_col}.
+\item \textbf{Intuitive}: Annualized month-over-month inflation using log differences.
+\item \textbf{Gotchas}: Requires strictly positive series; assumes adjacent rows are months.
+\item \textbf{\texttt{GrowthQoQAnnRecipe.run(df, params, ctx)}** (\texttt{id='growth\_qoq\_ann'})}
+\item \textbf{Technical}: \texttt{400*(log(value)-log(value.shift(1)))} for positive \texttt{value}; adds \texttt{out\_col}.
+\item \textbf{Intuitive}: Annualized quarter-over-quarter growth.
+\item \textbf{Gotchas}: Assumes adjacent rows are quarters.
+\item \textbf{\texttt{SpreadRecipe.run(df, params, ctx)}** (\texttt{id='spread'})}
+\item \textbf{Technical}: Computes \texttt{series\_a - series\_b} from two input columns; default output column \texttt{\{a\}\_minus\_\{b\}}.
+\item \textbf{Intuitive}: “Yield spread” / “difference between two rates/series.”
+\item \textbf{Gotchas}: Requires both columns already present (typically from a merged dataset).
+\item \textbf{\texttt{RealRateRecipe.run(df, params, ctx)}** (\texttt{id='real\_rate'})}
+\item \textbf{Technical}: Computes \texttt{nominal\_col - inflation\_col}; writes to \texttt{out\_col}.
+\item \textbf{Intuitive}: Ex-post real rate approximation.
+\item \textbf{Gotchas}: Units must match (both in percentage points, not decimals).
+\end{itemize}
+
+
+\subsubsection{Econometrics}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{OLSRecipe.run(df, params, ctx)}** (\texttt{id='ols'})}
+\item \textbf{Technical}: Requires \texttt{statsmodels}; parses \texttt{x\_cols} comma list; coerces to numeric; drops NaNs; fits \texttt{OLS(y, add\_constant(X))}; returns a tidy coefficient table with \texttt{coef}, \texttt{std\_err}, \texttt{t}, \texttt{p\_value}, and model stats (\texttt{nobs}, \texttt{r2}, \texttt{adj\_r2}).
+\item \textbf{Intuitive}: Classic regression “what explains y?” with readable output.
+\item \textbf{Gotchas}: Needs enough complete rows after dropping NaNs; \texttt{x\_cols} must exist as columns (usually from merged dataset).
+\item \textbf{\texttt{AR1Recipe.run(df, params, ctx)}** (\texttt{id='ar1'})}
+\item \textbf{Technical}: Requires \texttt{statsmodels}; builds lagged regression \textbackslash\{\}(y\_t = c + \textbackslash\{\}phi y\_\{t-1\} + e\_t\textbackslash\{\}) via OLS; returns coefficient table like OLS.
+\item \textbf{Intuitive}: “How persistent is this series?”
+\item \textbf{Gotchas}: Needs ≥10 obs; results can be noisy for short windows.
+\item \textbf{\texttt{LocalProjectionIRFRecipe.run(df, params, ctx)}** (\texttt{id='lp\_irf'})}
+\item \textbf{Technical}: Requires \texttt{statsmodels}; for horizons \textbackslash\{\}(h=0..H\textbackslash\{\}): regress \textbackslash\{\}(y\_\{t+h\}\textbackslash\{\}) on \texttt{shock\_t} (+ optional controls), store shock coefficient and CI bounds using a normal critical value; returns rows with \texttt{horizon}, \texttt{irf}, \texttt{std\_err}, \texttt{ci\_low}, \texttt{ci\_high}, \texttt{nobs}.
+\item \textbf{Intuitive}: Measures how y responds over time after a shock today, without specifying a full VAR.
+\item \textbf{Gotchas}: Needs enough data after shifting/dropna; CI uses normal approx (no \texttt{scipy}).
+\item \textbf{Inner def \texttt{\_zcrit(level)}}: maps common CI levels to z-scores (0.90/0.95/0.99) with 0.95 fallback.
+\end{itemize}
+
+
+
+\subsubsection{News sentiment (FinBERT)}
+
+\begin{itemize}[leftmargin=*,nosep]
+\item \textbf{\texttt{\_get\_pipeline()}}
+\item \textbf{Technical}: Lazily caches a HuggingFace \texttt{transformers.pipeline("sentiment-analysis", model="ProsusAI/finbert")} in a module-global \texttt{\_PIPELINE}.
+\item \textbf{Intuitive}: Load the model once; reuse it across jobs.
+\item \textbf{Gotchas}: Requires \texttt{transformers} + \texttt{torch}; model download can be slow on first run.
+\item \textbf{\texttt{\_label\_to\_signed\_score(label, score)}}
+\item \textbf{Technical}: Maps POS→\texttt{+score}, NEG→\texttt{-score}, else 0.
+\item \textbf{Intuitive}: Turn classification outputs into a single signed sentiment number.
+\item \textbf{Gotchas}: Neutral labels collapse to 0 regardless of confidence.
+\item \textbf{\texttt{FinBERTDailySentimentRecipe.run(df, params, ctx)}** (\texttt{id='news\_sentiment'})}
+\item \textbf{Technical}: Builds text from title/snippet; scores in batches; assigns per-article signed score; aggregates by date to daily mean/sum + article count; computes positive/negative label shares.
+\item \textbf{Intuitive}: Convert a messy article list into a clean daily sentiment time series.
+\item \textbf{Gotchas}: Input must have \texttt{title} and a parseable timestamp/date; grouping by date drops intraday detail.
+\item \textbf{Inner def \texttt{\_share(df\_g, needle)}}: helper to compute label share within each day’s group.
+\end{itemize}
+
+
+
+
+
+\end{document}

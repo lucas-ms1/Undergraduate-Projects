@@ -1,0 +1,24 @@
+# Local secrets
+.env
+*.env
+!.env.example
+.streamlit/secrets.toml
+
+# Python/runtime caches
+__pycache__/
+.pytest_cache/
+pytest-cache-files-*/
+*.py[cod]
+*.pyo
+*.egg-info/
+
+# Virtual environments and local tooling
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini

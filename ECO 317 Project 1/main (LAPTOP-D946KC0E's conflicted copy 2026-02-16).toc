@@ -1,0 +1,42 @@
+\contentsline {section}{\numberline {1}Macro Project 1 — Data Suite (Study Sheet)}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Quickstart (how to run)}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}High-level architecture (what runs where)}{2}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Common artifact schemas (what columns to expect)}{3}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}End-to-end data flow diagram}{3}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}Core “mental model” types}{3}{subsection.1.5}%
+\contentsline {subsection}{\numberline {1.6}How to read the function write-ups below}{4}{subsection.1.6}%
+\contentsline {section}{\numberline {2}Concepts (classroom + intuitive)}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Forecasting}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Time-series transforms}{7}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Technical indicators}{8}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Macro transforms}{10}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Econometrics}{12}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}News sentiment}{14}{subsection.2.6}%
+\contentsline {section}{\numberline {3}Function-by-function reference}{14}{section.3}%
+\contentsline {subsection}{\numberline {3.1}\texttt {streamlit\_app.py} (UI, orchestration, rendering)}{14}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}\texttt {scripts/e2e\_smoke.py} (smoke test entrypoint)}{17}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}\texttt {src/finrec/config.py} (configuration)}{17}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}\texttt {src/finrec/jobs/runner.py} (job execution)}{18}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}\texttt {src/finrec/storage/sqlite.py} (job persistence)}{18}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}\texttt {src/finrec/providers/**} (data providers)}{19}{subsection.3.6}%
+\contentsline {subsubsection}{\numberline {3.6.1}\texttt {providers/utils/optional.py} (optional dependency gating)}{19}{subsubsection.3.6.1}%
+\contentsline {subsubsection}{\numberline {3.6.2}\texttt {providers/registry.py} (dynamic provider registration)}{20}{subsubsection.3.6.2}%
+\contentsline {subsubsection}{\numberline {3.6.3}\texttt {providers/market/yfinance.py} (Yahoo Finance via yfinance)}{20}{subsubsection.3.6.3}%
+\contentsline {subsubsection}{\numberline {3.6.4}\texttt {providers/market/fmp.py} (Financial Modeling Prep, with fallback)}{21}{subsubsection.3.6.4}%
+\contentsline {subsubsection}{\numberline {3.6.5}\texttt {providers/macro/fred.py} (FRED via pandas-datareader)}{21}{subsubsection.3.6.5}%
+\contentsline {subsubsection}{\numberline {3.6.6}\texttt {providers/news/gdelt.py} (GDELT doc API)}{21}{subsubsection.3.6.6}%
+\contentsline {subsection}{\numberline {3.7}\texttt {src/finrec/ui/**}, \texttt {src/finrec/viz/**}, \texttt {src/finrec/datasets/**}}{22}{subsection.3.7}%
+\contentsline {subsubsection}{\numberline {3.7.1}\texttt {ui/pipelines.py} (turn providers/recipes into jobs)}{22}{subsubsection.3.7.1}%
+\contentsline {subsubsection}{\numberline {3.7.2}\texttt {ui/timeseries\_catalog.py} (curated option lists)}{22}{subsubsection.3.7.2}%
+\contentsline {subsubsection}{\numberline {3.7.3}\texttt {viz/plotly\_timeseries.py} (Plotly figure construction)}{23}{subsubsection.3.7.3}%
+\contentsline {subsubsection}{\numberline {3.7.4}\texttt {datasets/merge.py} (artifact merging)}{23}{subsubsection.3.7.4}%
+\contentsline {subsection}{\numberline {3.8}\texttt {src/finrec/recipes/**} (transformations and models)}{23}{subsection.3.8}%
+\contentsline {subsubsection}{\numberline {3.8.1}Common recipe contract (what every recipe does)}{23}{subsubsection.3.8.1}%
+\contentsline {subsubsection}{\numberline {3.8.2}\texttt {recipes/registry.py} (recipe registration)}{23}{subsubsection.3.8.2}%
+\contentsline {subsubsection}{\numberline {3.8.3}\texttt {recipes/forecast/\_utils.py} (forecasting utilities and standardized schema)}{24}{subsubsection.3.8.3}%
+\contentsline {subsubsection}{\numberline {3.8.4}Forecast recipes (all output the \texttt {build\_forecast\_output} schema)}{25}{subsubsection.3.8.4}%
+\contentsline {subsubsection}{\numberline {3.8.5}Time-series transforms}{26}{subsubsection.3.8.5}%
+\contentsline {subsubsection}{\numberline {3.8.6}Technical indicators}{26}{subsubsection.3.8.6}%
+\contentsline {subsubsection}{\numberline {3.8.7}Macro transforms}{26}{subsubsection.3.8.7}%
+\contentsline {subsubsection}{\numberline {3.8.8}Econometrics}{27}{subsubsection.3.8.8}%
+\contentsline {subsubsection}{\numberline {3.8.9}News sentiment (FinBERT)}{27}{subsubsection.3.8.9}%

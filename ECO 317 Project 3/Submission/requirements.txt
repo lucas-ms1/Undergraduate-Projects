@@ -1,0 +1,10 @@
+streamlit
+numpy
+scipy
+pandas
+matplotlib
+plotly
+pytest
+statsmodels
+fredapi
+pandas-datareader

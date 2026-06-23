@@ -1,0 +1,44 @@
+#!/bin/bash
+cd /Users/ridasuresh/Desktop/drive-download-20260308T005603Z-1-001
+
+echo "=== Pytest (Model 1) ==="
+.venv/bin/pytest tests/test_model1_consumption_savings.py -v
+
+echo ""
+echo "=== Model 1 feasibility ==="
+.venv/bin/python -c "
+from models.consumption_savings import solve
+import numpy as np
+r = solve(dict(n_a=80))
+assert (r['c_policy'] > 0).all() and not np.any(np.isnan(r['c_policy']))
+print('OK')
+"
+
+echo ""
+echo "=== Model 2 feasibility_mask ==="
+.venv/bin/python -c "
+from models.robinson_crusoe import feasibility_mask
+import numpy as np
+m = feasibility_mask(np.linspace(0.01,50,30), np.array([0.9,1.1]), 0.36, 0.10)
+print('OK' if m.shape[0] > 0 and 0 < m.mean() < 1 else 'FAIL')
+"
+
+echo ""
+echo "=== Model 3 feasibility_mask ==="
+.venv/bin/python -c "
+from models.labor_supply import feasibility_mask
+import numpy as np
+m = feasibility_mask(None, np.array([0.8,1.2]), np.linspace(0.01,0.99,20), 0.03, False)
+print('OK' if m.shape == (2,20) and m.any() else 'FAIL')
+"
+
+echo ""
+echo "=== utils/grids ==="
+.venv/bin/python -c "
+from utils.grids import is_consumption_positive, is_labor_feasible
+import numpy as np
+assert is_consumption_positive(1)
+assert not is_consumption_positive(0)
+assert is_labor_feasible(0.5, True)
+print('OK')
+"

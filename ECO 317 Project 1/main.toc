@@ -1,0 +1,76 @@
+\contentsline {section}{\numberline {1}Executive Overview}{3}{section.1}%
+\contentsline {section}{\numberline {2}Architecture \& Data Flow}{3}{section.2}%
+\contentsline {section}{\numberline {3}Configuration \& Feature Gating}{4}{section.3}%
+\contentsline {section}{\numberline {4}Getting Started (Runbook)}{4}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Install and run}{4}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}What ``optional extras'' mean}{4}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Where outputs live}{5}{subsection.4.3}%
+\contentsline {section}{\numberline {5}Core Concepts (the minimal vocabulary)}{5}{section.5}%
+\contentsline {section}{\numberline {6}High-Level Methods Overview (why these features exist)}{5}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Macro transforms (inflation, growth, spreads, real rates)}{5}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Econometrics (OLS, AR(1), local projections/IRFs)}{6}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Forecasting (baselines, statistical models, and ML lags)}{6}{subsection.6.3}%
+\contentsline {subsection}{\numberline {6.4}Technical indicators and news sentiment}{6}{subsection.6.4}%
+\contentsline {section}{\numberline {7}Worked Examples (end-to-end workflows)}{6}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Example A: CPI to YoY inflation to plot}{6}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Example B: a series to baseline forecasts to ARIMA}{7}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Example C: build a regression dataset, run OLS, interpret}{7}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Glossary (quick definitions)}{7}{section.8}%
+\contentsline {section}{\numberline {9}Reference: Feature Index}{8}{section.9}%
+\contentsline {section}{\numberline {10}Feature Writeups}{10}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Data Ingestion}{10}{subsection.10.1}%
+\contentsline {subsubsection}{\numberline {10.1.1}YFinanceProvider}{10}{subsubsection.10.1.1}%
+\contentsline {subsubsection}{\numberline {10.1.2}FMPProvider}{10}{subsubsection.10.1.2}%
+\contentsline {subsubsection}{\numberline {10.1.3}FREDProvider}{11}{subsubsection.10.1.3}%
+\contentsline {subsubsection}{\numberline {10.1.4}GDELTProvider}{12}{subsubsection.10.1.4}%
+\contentsline {subsection}{\numberline {10.2}Infrastructure}{13}{subsection.10.2}%
+\contentsline {subsubsection}{\numberline {10.2.1}ProviderRegistry}{13}{subsubsection.10.2.1}%
+\contentsline {subsubsection}{\numberline {10.2.2}Provider base protocol}{13}{subsubsection.10.2.2}%
+\contentsline {subsection}{\numberline {10.3}Forecasting}{14}{subsection.10.3}%
+\contentsline {subsubsection}{\numberline {10.3.1}NaiveForecastRecipe}{14}{subsubsection.10.3.1}%
+\contentsline {subsubsection}{\numberline {10.3.2}DriftForecastRecipe}{15}{subsubsection.10.3.2}%
+\contentsline {subsubsection}{\numberline {10.3.3}ETSForecastRecipe}{15}{subsubsection.10.3.3}%
+\contentsline {subsubsection}{\numberline {10.3.4}ARIMAForecastRecipe}{16}{subsubsection.10.3.4}%
+\contentsline {subsubsection}{\numberline {10.3.5}RidgeLagForecastRecipe}{17}{subsubsection.10.3.5}%
+\contentsline {subsubsection}{\numberline {10.3.6}RandomForestLagForecastRecipe}{17}{subsubsection.10.3.6}%
+\contentsline {subsubsection}{\numberline {10.3.7}Forecast utilities}{18}{subsubsection.10.3.7}%
+\contentsline {subsection}{\numberline {10.4}Macro Transforms}{19}{subsection.10.4}%
+\contentsline {subsubsection}{\numberline {10.4.1}InflationYoYRecipe}{19}{subsubsection.10.4.1}%
+\contentsline {subsubsection}{\numberline {10.4.2}InflationMoMAnnRecipe}{19}{subsubsection.10.4.2}%
+\contentsline {subsubsection}{\numberline {10.4.3}GrowthQoQAnnRecipe}{20}{subsubsection.10.4.3}%
+\contentsline {subsubsection}{\numberline {10.4.4}SpreadRecipe}{20}{subsubsection.10.4.4}%
+\contentsline {subsubsection}{\numberline {10.4.5}RealRateRecipe}{21}{subsubsection.10.4.5}%
+\contentsline {subsection}{\numberline {10.5}Econometrics}{21}{subsection.10.5}%
+\contentsline {subsubsection}{\numberline {10.5.1}OLSRecipe}{21}{subsubsection.10.5.1}%
+\contentsline {subsubsection}{\numberline {10.5.2}AR1Recipe}{22}{subsubsection.10.5.2}%
+\contentsline {subsubsection}{\numberline {10.5.3}LocalProjectionIRFRecipe}{23}{subsubsection.10.5.3}%
+\contentsline {subsection}{\numberline {10.6}News Processing}{24}{subsection.10.6}%
+\contentsline {subsubsection}{\numberline {10.6.1}FinBERTDailySentimentRecipe}{24}{subsubsection.10.6.1}%
+\contentsline {subsection}{\numberline {10.7}Technical Indicators}{24}{subsection.10.7}%
+\contentsline {subsubsection}{\numberline {10.7.1}SimpleMovingAverageRecipe}{24}{subsubsection.10.7.1}%
+\contentsline {subsubsection}{\numberline {10.7.2}ExponentialMovingAverageRecipe}{25}{subsubsection.10.7.2}%
+\contentsline {subsubsection}{\numberline {10.7.3}RSIRecipe}{25}{subsubsection.10.7.3}%
+\contentsline {subsubsection}{\numberline {10.7.4}MACDRecipe}{26}{subsubsection.10.7.4}%
+\contentsline {subsubsection}{\numberline {10.7.5}RollingVolatilityRecipe}{26}{subsubsection.10.7.5}%
+\contentsline {subsection}{\numberline {10.8}Time Series Transforms}{27}{subsection.10.8}%
+\contentsline {subsubsection}{\numberline {10.8.1}LogReturnsRecipe}{27}{subsubsection.10.8.1}%
+\contentsline {subsubsection}{\numberline {10.8.2}RollingZScoreRecipe}{27}{subsubsection.10.8.2}%
+\contentsline {subsection}{\numberline {10.9}Infrastructure (continued)}{28}{subsection.10.9}%
+\contentsline {subsubsection}{\numberline {10.9.1}RecipeRegistry}{28}{subsubsection.10.9.1}%
+\contentsline {subsubsection}{\numberline {10.9.2}Recipe base protocol}{28}{subsubsection.10.9.2}%
+\contentsline {subsubsection}{\numberline {10.9.3}SQLiteStorage}{29}{subsubsection.10.9.3}%
+\contentsline {subsubsection}{\numberline {10.9.4}JobRunner}{29}{subsubsection.10.9.4}%
+\contentsline {subsubsection}{\numberline {10.9.5}Pipeline submission}{30}{subsubsection.10.9.5}%
+\contentsline {subsection}{\numberline {10.10}Datasets}{30}{subsection.10.10}%
+\contentsline {subsubsection}{\numberline {10.10.1}build\_merged\_dataset}{30}{subsubsection.10.10.1}%
+\contentsline {subsection}{\numberline {10.11}Visualization}{31}{subsection.10.11}%
+\contentsline {subsubsection}{\numberline {10.11.1}plot\_timeseries}{31}{subsubsection.10.11.1}%
+\contentsline {subsubsection}{\numberline {10.11.2}build\_recession\_intervals}{32}{subsubsection.10.11.2}%
+\contentsline {subsection}{\numberline {10.12}UI \& Config}{32}{subsection.10.12}%
+\contentsline {subsubsection}{\numberline {10.12.1}Time series catalog}{32}{subsubsection.10.12.1}%
+\contentsline {subsubsection}{\numberline {10.12.2}AppConfig / load\_config}{32}{subsubsection.10.12.2}%
+\contentsline {subsubsection}{\numberline {10.12.3}Optional dependency helpers}{33}{subsubsection.10.12.3}%
+\contentsline {subsubsection}{\numberline {10.12.4}Main Streamlit app}{33}{subsubsection.10.12.4}%
+\contentsline {subsubsection}{\numberline {10.12.5}Legacy pages}{34}{subsubsection.10.12.5}%
+\contentsline {subsubsection}{\numberline {10.12.6}E2E smoke script}{34}{subsubsection.10.12.6}%
+\contentsline {section}{\numberline {11}Completeness Checklist}{35}{section.11}%

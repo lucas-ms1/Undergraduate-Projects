@@ -1,0 +1,788 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.95in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{enumitem}
+\usepackage{array,booktabs,longtable,tabularx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\definecolor{myblue}{RGB}{20,55,90}
+\definecolor{mygray}{RGB}{245,245,245}
+\definecolor{mygreen}{RGB}{20,110,70}
+\definecolor{myorange}{RGB}{200,120,20}
+
+\titleformat{\section}{\large\bfseries\color{myblue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{myblue}}{\thesubsection.}{0.5em}{}
+
+\lstdefinestyle{mystyle}{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{mygray},
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    columns=fullflexible
+}
+
+\lstset{style=mystyle}
+\setlist[itemize]{nosep,leftmargin=1.4em}
+\setlist[enumerate]{nosep,leftmargin=1.6em}
+
+\newtcolorbox{goalbox}{
+    colback=blue!3,
+    colframe=myblue,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{warningbox}{
+    colback=red!2,
+    colframe=red!55!black,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{notebox}{
+    colback=yellow!5,
+    colframe=myorange,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{intuitbox}{
+    colback=green!3,
+    colframe=mygreen,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Unified Project Plan: AI-Assisted Macroeconomic Modeling Dashboard}}\\[0.4em]
+    {\large ECO 317 -- Assignment \#2}\\[0.4em]
+    \rule{0.9\linewidth}{0.5pt}
+\end{center}
+
+\begin{goalbox}
+\textbf{Project goal in plain language.} Build one Streamlit app that solves three infinite-horizon stochastic macro models with Value Function Iteration, simulates them for at least 100 periods, produces exact policy-based forecasts, shows moments and graphs, uses polished academic styling, and is reliable enough to launch live with \texttt{streamlit run app.py} in front of the professor.
+\end{goalbox}
+
+\section{Project Objective and Assignment Requirements}
+
+\subsection{What the finished project must do}
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item Solve three models from class notes:
+    \begin{itemize}
+        \item Model 1: stochastic consumption-savings with income shock.
+        \item Model 2: stochastic Robinson Crusoe model with capital and TFP shock.
+        \item Model 3: endogenous labor supply with wage shock.
+    \end{itemize}
+    \item Solve all three over an infinite horizon using Value Function Iteration (VFI).
+    \item Use a two-state Markov shock in every model.
+    \item Simulate each model for at least 100 periods.
+    \item Report mean, variance, lag-1 autocorrelation, and correlation with income or output.
+    \item Produce forecasts using solved policy functions, not trend fitting.
+    \item Provide a unified Streamlit dashboard with model switching, parameter sliders, and Markov probability controls.
+    \item Include a dark or navy interface with white chart areas and a Garamond-style serif look if possible.
+    \item Add dynamic written summaries built from live results using Python f-strings.
+    \item Be explainable by any teammate during the live demo.
+\end{enumerate}
+
+\subsection{What already exists in the project folder}
+This project already has the main folders and starter files. Use them instead of inventing a new structure.
+
+\begin{lstlisting}
+ECO 317 Project 2/
+|-- app.py
+|-- config.py
+|-- README.md
+|-- requirements.txt
+|-- assets/style.css
+|-- models/
+|   |-- consumption_savings.py
+|   |-- robinson_crusoe.py
+|   |-- labor_supply.py
+|-- solvers/vfi.py
+|-- simulation/
+|   |-- simulate.py
+|   |-- forecast.py
+|   |-- moments.py
+|-- utils/
+|   |-- grids.py
+|   |-- markov.py
+|   |-- interpolation.py
+|-- tests/
+\end{lstlisting}
+
+\begin{notebox}
+\textbf{Important repo rule.} \texttt{requirements.txt}, \texttt{app.py}, \texttt{config.py}, \texttt{assets/style.css}, \texttt{models/}, \texttt{solvers/}, \texttt{simulation/}, \texttt{utils/}, and \texttt{tests/} already exist. Teammates should edit those files or create new files \emph{inside those existing folders} when needed. Do not create a second top-level project layout.
+\end{notebox}
+
+\subsection{How to think about the project}
+\begin{intuitbox}
+\textbf{Simple mental model.} The solver finds the optimal policy rules. The simulation uses those policy rules to generate time series. The forecast uses those same policy rules with a user-chosen future shock path. The Streamlit app is just the display layer on top of that pipeline.
+\end{intuitbox}
+
+\section{Locked-In Model Specs}
+
+\subsection{Shared rules for all three models}
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Item} & \textbf{Locked-in choice} \\
+\midrule
+Horizon & Infinite horizon \\
+Solution method & Value Function Iteration \\
+Shock process & Two-state Markov chain in each model \\
+Grid size target & Usually 200--400 points for main state grids; keep defaults fast enough for live demo \\
+Simulation target & At least 100 periods per model \\
+Forecast rule & Use solved policy functions; do not fit separate trends \\
+Moments & Mean, variance, lag-1 autocorrelation, correlation with income or output \\
+Dashboard & One Streamlit app with model toggle, sliders, plots, tables, and written summaries \\
+Runtime text & Deterministic Python f-strings based on computed results \\
+\bottomrule
+\end{tabularx}
+
+\begin{warningbox}
+\textbf{Non-negotiable rule.} If a textbook version differs from the course notes, the course notes win. The biggest grading risk is not a missing widget. It is coding the wrong economics.
+\end{warningbox}
+
+\subsection{Model 1: Stochastic consumption-savings}
+\[
+V(a_t,y_t) = \max_{a_{t+1}} \left\{ u(c_t) + \beta \sum_{y_{t+1}} P(y_{t+1}\mid y_t)V(a_{t+1},y_{t+1}) \right\}
+\]
+\[
+c_t + a_{t+1} = y_t + (1+r_t)a_t, \qquad c_t > 0
+\]
+\[
+u(c) =
+\begin{cases}
+\dfrac{c^{1-\sigma}-1}{1-\sigma}, & \sigma \neq 1 \\[0.4em]
+\ln(c), & \sigma = 1
+\end{cases}
+\]
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+State variables & Current assets \(a_t\) and current income shock \(y_t\) \\
+Control variable & Next-period assets \(a_{t+1}\) \\
+Shock states & Low income and high income \\
+Transition matrix & Two-state matrix; default project choice uses rows \([0.9, 0.1]\) and \([0.1, 0.9]\) unless the group changes it in the UI \\
+Timing & Enter with \(a_t\), observe \(y_t\), choose \(a_{t+1}\), back out \(c_t\) from the budget constraint \\
+Solver outputs & Value function, policy indices, savings policy, consumption policy, diagnostics, state grid \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Model 2: Stochastic Robinson Crusoe}
+\[
+V(k_t,z_t) = \max_{k_{t+1}} \left\{ u(c_t) + \beta \sum_{z_{t+1}} P(z_{t+1}\mid z_t)V(k_{t+1},z_{t+1}) \right\}
+\]
+\[
+c_t + k_{t+1} = y_t + (1-\delta)k_t
+\]
+\[
+y_{t+1} = z_{t+1}F(k_{t+1}), \qquad F(k)=Ak^{\alpha}
+\]
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+State variables & Current capital \(k_t\) and current TFP shock \(z_t\) \\
+Control variable & Next-period capital \(k_{t+1}\) \\
+Shock states & Low TFP and high TFP \\
+Transition matrix & Two-state TFP Markov matrix; default project choice uses rows \([0.9, 0.1]\) and \([0.1, 0.9]\) \\
+Timing & Enter with installed capital \(k_t\), observe \(z_t\), choose \(k_{t+1}\), then tomorrow's output follows \(Y_{t+1} = F(K_{t+1})\) with the shock applied \\
+Solver outputs & Value function, policy indices, capital policy, consumption policy, diagnostics, capital grid \\
+\bottomrule
+\end{tabularx}
+
+\begin{warningbox}
+\textbf{Timing warning for Model 2.} This is the most important model-specific caution in the whole project. Use the lecture timing literally: tomorrow's output is defined by \(Y_{t+1}=F(K_{t+1})\). Do not silently replace it with a different textbook timing convention.
+\end{warningbox}
+
+\subsection{Model 3: Endogenous labor supply}
+\[
+V(a_t,w_t) = \max_{a_{t+1},\,L_t \in [0,1]}
+\left\{
+u(c_t) + v(1-L_t) + \beta \sum_{w_{t+1}} P(w_{t+1}\mid w_t)V(a_{t+1},w_{t+1})
+\right\}
+\]
+\[
+c_t + a_{t+1} = (1+r_t)a_t + w_tL_t, \qquad c_t>0
+\]
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+State variables & Current assets \(a_t\) and current wage shock \(w_t\) \\
+Control variables & Next-period assets \(a_{t+1}\) and labor \(L_t\) \\
+Shock states & Low wage and high wage \\
+Transition matrix & Two-state wage Markov matrix; default project choice uses rows \([0.9, 0.1]\) and \([0.1, 0.9]\) \\
+Timing & Enter with assets, observe wage, choose labor and saving, then recover consumption and leisure \(1-L_t\) \\
+Solver outputs & Value function, savings policy, labor policy, consumption policy, diagnostics \\
+\bottomrule
+\end{tabularx}
+
+\begin{warningbox}
+\textbf{Model 3 lock-in.} The lecture-based lock-in sheet supports an asset-inclusive labor model with time endowment \(T=1\). Keep labor in \([0,1]\), keep leisure as \(1-L\), and only drop the asset dimension if the instructor explicitly tells the group to use a simpler lecture version.
+\end{warningbox}
+
+\subsection{Cross-model coding convention}
+All three models should return the same top-level structure as much as possible:
+\begin{itemize}
+    \item \texttt{value\_function}
+    \item \texttt{policy\_indices}
+    \item \texttt{policy\_levels}
+    \item \texttt{c\_policy}
+    \item \texttt{grid}
+    \item \texttt{diagnostics}
+\end{itemize}
+
+\section{Step-by-Step Build Plan}
+
+\subsection{Step 1: Lock the equations before anyone writes serious code}
+\textbf{Owner:} Shared group work
+
+\textbf{Open these files first:}
+\begin{itemize}
+    \item the assignment PDF,
+    \item \texttt{model\_lockin\_sheet.tex},
+    \item \texttt{execution\_plan.tex},
+    \item \texttt{plan.tex}.
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Confirm the Bellman equation, budget or resource constraint, state variables, controls, and timing for all three models.
+    \item Write down any final naming choices for variables such as \texttt{a\_grid}, \texttt{k\_grid}, \texttt{labor\_grid}, \texttt{P}, and \texttt{policy\_idx}.
+    \item Decide which quantities each model must simulate and plot.
+\end{itemize}
+
+\textbf{Done when:} every teammate can answer ``what is the state, what is the control, what is the constraint, and what is the timing?'' for all three models.
+
+\subsection{Step 2: Make sure the environment and root files are usable}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{requirements.txt}
+    \item \texttt{README.md}
+    \item \texttt{app.py}
+    \item \texttt{config.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Update \texttt{requirements.txt} if a needed package is missing. Do not recreate the file from scratch because it already exists.
+    \item Keep \texttt{README.md} short and accurate so any teammate can install and launch the app.
+    \item Use \texttt{app.py} as the entry point for the smoke test.
+    \item Use \texttt{config.py} for default parameters shared across models.
+\end{itemize}
+
+\textbf{Beginner note:} if you are unsure whether something belongs in \texttt{app.py} or \texttt{config.py}, put only user interface code in \texttt{app.py} and put default model values in \texttt{config.py}.
+
+\textbf{Done when:} \texttt{pip install -r requirements.txt} works and \texttt{streamlit run app.py} opens a basic page.
+
+\subsection{Step 3: Turn the existing folder tree into a clear skeleton}
+\textbf{Owner:} Shared group work
+
+\textbf{Use these existing folders:}
+\begin{itemize}
+    \item \texttt{models/}
+    \item \texttt{solvers/}
+    \item \texttt{simulation/}
+    \item \texttt{utils/}
+    \item \texttt{tests/}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Put model-specific economics in the matching file under \texttt{models/}.
+    \item Put the generic VFI loop in \texttt{solvers/vfi.py}.
+    \item Put time-series logic in \texttt{simulation/simulate.py}, forecast logic in \texttt{simulation/forecast.py}, and moments in \texttt{simulation/moments.py}.
+    \item Put reusable numerical helpers in \texttt{utils/}.
+    \item If you need a new helper file such as \texttt{utils/summaries.py}, create it inside the existing folder rather than making a new top-level folder.
+\end{itemize}
+
+\textbf{Done when:} the group has agreed where each type of code will live before the real implementation starts.
+
+\subsection{Step 4: Build the shared numerical utilities first}
+\textbf{Owner:} Aiden
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{utils/grids.py}
+    \item \texttt{utils/markov.py}
+    \item \texttt{utils/interpolation.py}
+    \item \texttt{simulation/moments.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item In \texttt{utils/grids.py}, add helpers for linear grids, optional curved grids, clipping, and bounds checks.
+    \item In \texttt{utils/markov.py}, add transition-matrix validation and shock-path simulation.
+    \item In \texttt{utils/interpolation.py}, wrap \texttt{numpy.interp} so simulation and forecasting use one common interpolation rule.
+    \item In \texttt{simulation/moments.py}, add mean, variance, lag-1 autocorrelation, and correlation helpers.
+\end{itemize}
+
+\textbf{Done when:} you can build a test grid, validate a 2-by-2 Markov matrix, simulate a simple shock path, and compute moments on a fake series.
+
+\subsection{Step 5: Build the generic VFI engine}
+\textbf{Owner:} Aiden
+
+\textbf{Open or edit this file:}
+\begin{itemize}
+    \item \texttt{solvers/vfi.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Write the main Bellman iteration loop.
+    \item Let model files supply model-specific pieces such as utility, feasibility, state transition logic, and candidate controls.
+    \item Track convergence error and store policy indices.
+    \item Return diagnostics such as iteration count, final error, and converged flag.
+\end{itemize}
+
+\begin{lstlisting}
+V = np.zeros((n_grid, n_shocks))
+for it in range(max_iter):
+    V_new = np.empty_like(V)
+    policy_idx = np.empty_like(V, dtype=int)
+\end{lstlisting}
+
+\textbf{Done when:} the solver converges on a tiny toy problem and returns a reusable result structure.
+
+\subsection{Step 6: Add feasibility checks before real model runs}
+\textbf{Owner:} Rida
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{models/consumption\_savings.py}
+    \item \texttt{models/robinson\_crusoe.py}
+    \item \texttt{models/labor\_supply.py}
+    \item optionally \texttt{utils/grids.py} if shared clipping helpers help
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item For each model, define what counts as feasible.
+    \item Reject any choice that makes consumption nonpositive.
+    \item For Model 3, keep labor in \([0,1]\) and keep leisure valid.
+    \item Decide whether infeasible choices are filtered out or assigned \texttt{-np.inf}.
+\end{itemize}
+
+\textbf{Beginner note:} this step is mostly about preventing impossible economics from entering the maximization. If a control choice breaks the budget constraint, the code should reject it immediately.
+
+\textbf{Done when:} extreme parameter choices fail cleanly or get filtered out instead of producing nonsense.
+
+\subsection{Step 7: Finish Model 1 completely and use it as the template}
+\textbf{Owner:} Rida
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{models/consumption\_savings.py}
+    \item \texttt{config.py}
+    \item \texttt{tests/} for a basic Model 1 test file if needed
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Build the asset grid and income states.
+    \item Add the two-state Markov matrix.
+    \item Implement CRRA utility with the log special case when \(\sigma=1\).
+    \item Call the generic VFI engine and return savings and consumption policies.
+    \item Keep the function output in the shared cross-model format.
+\end{itemize}
+
+\begin{lstlisting}
+asset_grid = np.linspace(a_min, a_max, n_a)
+P = np.array([[0.9, 0.1],
+              [0.1, 0.9]])
+\end{lstlisting}
+
+\textbf{Done when:} Model 1 produces smooth, believable savings and consumption policies and positive consumption everywhere.
+
+\subsection{Step 8: Add simulation and moments for Model 1}
+\textbf{Owner:} Lindsey
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{simulation/simulate.py}
+    \item \texttt{simulation/moments.py}
+    \item \texttt{models/consumption\_savings.py} if you need model-specific simulation helpers
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Simulate a shock path for Model 1.
+    \item Apply the saved policy functions period by period.
+    \item Interpolate if the current asset level falls off-grid.
+    \item Store assets, consumption, and income in arrays or a DataFrame.
+    \item Compute the required moments.
+\end{itemize}
+
+\textbf{Done when:} the same random seed gives the same simulation and the moments match direct calculations from the simulated arrays.
+
+\subsection{Step 9: Add forecast logic for Model 1}
+\textbf{Owner:} Lindsey
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{simulation/forecast.py}
+    \item \texttt{models/consumption\_savings.py}
+    \item \texttt{app.py} later for UI hookup
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Write a forecast function that takes the current state and a user-selected future shock path.
+    \item Use solved policy functions only.
+    \item Store forecast paths separately from the random simulation output.
+    \item Keep the horizon configurable.
+\end{itemize}
+
+\textbf{Done when:} a chosen shock sequence like high, high, low visibly changes the forecast path in a model-consistent way.
+
+\subsection{Step 10: Implement Model 2 after a timing checkpoint}
+\textbf{Owner:} Ben
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{models/robinson\_crusoe.py}
+    \item \texttt{config.py}
+    \item \texttt{tests/} for a Model 2 test file if needed
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Re-check the notes and keep the \(Y_{t+1}=F(K_{t+1})\) timing at the top of the file as a comment.
+    \item Build the capital grid and TFP states.
+    \item Add production, depreciation, and feasibility rules.
+    \item Call the shared VFI engine.
+    \item Return capital, consumption, and diagnostics in the common structure.
+\end{itemize}
+
+\textbf{Done when:} the model produces reasonable paths for capital, output, consumption, and investment, and the upper grid edge is not binding all the time.
+
+\subsection{Step 11: Implement Model 3 with labor-leisure trade-offs}
+\textbf{Owner:} Ben
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{models/labor\_supply.py}
+    \item \texttt{config.py}
+    \item \texttt{tests/} for a Model 3 test file if needed
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Use the wage shock and time endowment \(T=1\).
+    \item Create the labor grid.
+    \item If using the lecture-backed asset-inclusive version, search jointly over labor and next-period assets.
+    \item Recover labor, consumption, and savings policies.
+    \item Add at least one static intuition graph idea, such as labor against wage or labor against the leisure-weight parameter.
+\end{itemize}
+
+\textbf{Done when:} labor stays in \([0,1]\), leisure remains valid, and the resulting policy behavior is economically interpretable.
+
+\subsection{Step 12: Standardize the interface across all three models}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{models/consumption\_savings.py}
+    \item \texttt{models/robinson\_crusoe.py}
+    \item \texttt{models/labor\_supply.py}
+    \item \texttt{simulation/simulate.py}
+    \item \texttt{simulation/forecast.py}
+    \item \texttt{simulation/moments.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Make sure all three models return similar key names.
+    \item Use one shared simulation interface and one shared forecast interface where possible.
+    \item Decide the key plotted series for each model.
+\end{itemize}
+
+\textbf{Done when:} switching from one model to another mostly changes the data, not the overall app logic.
+
+\subsection{Step 13: Build the Streamlit dashboard on top of working model code}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{app.py}
+    \item \texttt{config.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Add model navigation.
+    \item Add sliders or number inputs for parameters and Markov probabilities.
+    \item Solve the selected model, run the simulation, run the forecast, and display results.
+    \item Keep \texttt{app.py} thin by calling functions from model, solver, simulation, and utility files.
+\end{itemize}
+
+\textbf{Done when:} a user can move between the three models without the app breaking.
+
+\subsection{Step 14: Add comparative statics and written summaries}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{app.py}
+    \item \texttt{simulation/moments.py}
+    \item create \texttt{utils/summaries.py} inside \texttt{utils/} if you want summary logic in one place
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Add at least one baseline-versus-alternative comparison.
+    \item Compare two calibrations such as higher \(\beta\), higher \(\sigma\), or different shock persistence.
+    \item Generate written summaries with deterministic f-strings based on computed moments.
+\end{itemize}
+
+\textbf{Done when:} the app text and comparison plots change when parameters change, and the wording matches the computed results.
+
+\subsection{Step 15: Add styling, caching, and performance protection}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{assets/style.css}
+    \item \texttt{app.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Put the dark or navy styling in \texttt{assets/style.css}.
+    \item Use a serif fallback stack if exact Garamond is unavailable.
+    \item Cache expensive solver calls in \texttt{app.py}.
+    \item Choose default grid sizes and simulation lengths that still feel responsive during the demo.
+\end{itemize}
+
+\textbf{Done when:} the app looks intentional and standard slider changes update within a few seconds.
+
+\subsection{Step 16: Add tests and sanity checks}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or create these files inside the existing \texttt{tests/} folder:}
+\begin{itemize}
+    \item \texttt{tests/test\_model1.py}
+    \item \texttt{tests/test\_model2.py}
+    \item \texttt{tests/test\_model3.py}
+    \item \texttt{tests/test\_moments.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Test positivity of consumption.
+    \item Test policy bounds.
+    \item Test convergence flags.
+    \item Test that moments displayed in the app match direct calculations from the same data.
+    \item Check for NaNs, infinities, and obviously jagged policies.
+\end{itemize}
+
+\textbf{Done when:} all three models pass a basic sanity suite and the dashboard outputs match the underlying numerical data.
+
+\subsection{Step 17: Keep a prompt log and comments the whole time}
+\textbf{Owner:} Shared group work
+
+\textbf{Create or edit these files if needed:}
+\begin{itemize}
+    \item create \texttt{prompt\_log.md} in the project root
+    \item add comments inside model, solver, simulation, and app files
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item For each major AI-assisted component, record the prompt, the file it affected, what was kept, and what was corrected.
+    \item Add comments that explain the economics and numerical logic, not just the syntax.
+\end{itemize}
+
+\textbf{Done when:} if the professor points at a block of code, someone can explain what it does and how the AI-generated part was checked.
+
+\subsection{Step 18: Rehearse the live demo exactly as it will happen}
+\textbf{Owner:} Shared group work
+
+\textbf{What to practice:}
+\begin{itemize}
+    \item run \texttt{pip install -r requirements.txt}
+    \item run \texttt{streamlit run app.py}
+    \item switch across all three models
+    \item move sliders and explain the economic effect
+    \item answer code-location questions such as ``where is the Bellman update?'' or ``where is interpolation used?''
+\end{itemize}
+
+\textbf{Done when:} any teammate can handle both a random economics question and a random code-workflow question without needing a rescue.
+
+\section{Team Ownership By Step}
+
+\begin{tabularx}{\linewidth}{@{}p{1.3cm}p{2.2cm}X@{}}
+\toprule
+\textbf{Step} & \textbf{Owner} & \textbf{Main responsibility} \\
+\midrule
+1--3 & Shared & Lock equations, confirm environment, agree on file structure \\
+4--5 & Aiden & Shared utilities and generic VFI engine \\
+6--7 & Rida & Feasibility logic and full Model 1 implementation \\
+8--9 & Lindsey & Model 1 simulation, moments, and forecast logic \\
+10--11 & Ben & Model 2 and Model 3 implementation \\
+12--18 & Shared & Integration, dashboard, summaries, styling, testing, prompt log, and rehearsal \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{How to use this ownership table.} It does not mean one person works alone forever. It means that person is the first owner of the step, writes the first clean version, and makes sure the rest of the group understands it before the team moves on.
+\end{notebox}
+
+\subsection{Where each member's work lives in the final project}
+
+Use this box during the presentation to quickly point at the file that contains your contribution. If the professor asks ``who wrote this and where is it?'' every teammate should be able to answer immediately.
+
+\begin{intuitbox}
+\textbf{Aiden -- Steps 4--5: Shared utilities and generic VFI engine.}
+\begin{itemize}
+    \item \texttt{utils/grids.py} -- \texttt{linear\_grid} (line~11: evenly spaced grid via \texttt{np.linspace}), \texttt{curved\_grid} (line~16: quadratic spacing denser near lower bound), \texttt{clip\_to\_grid} (line~22: clamps values to grid bounds), \texttt{is\_consumption\_positive} (line~27: checks $c>0$ for all elements), \texttt{is\_labor\_feasible} (line~32: checks $L\in[0,1]$).
+    \item \texttt{utils/markov.py} -- \texttt{validate\_transition\_matrix} (line~11: verifies square, non-negative, rows sum to 1), \texttt{simulate\_shock\_path} (line~26: draws a length-$T$ index path from the Markov chain using \texttt{np.random.default\_rng}).
+    \item \texttt{utils/interpolation.py} -- \texttt{interp\_policy} (line~12: wraps \texttt{numpy.interp} for off-grid policy evaluation; clamped at boundaries).
+    \item \texttt{simulation/moments.py} -- \texttt{compute\_moments} (line~20: returns dict of mean, variance, lag-1 autocorrelation, and correlation with income/output for every simulated series).
+    \item \texttt{solvers/vfi.py} -- \texttt{iterate(V\_init, bellman\_operator)} (line~23: callback-style VFI engine; loops until $\max|V_{n+1}-V_n|<\texttt{tol}$ or \texttt{max\_iter}; returns \texttt{value\_function}, \texttt{policy\_indices}, and \texttt{diagnostics} dict with \texttt{iterations}, \texttt{final\_error}, \texttt{converged}).
+\end{itemize}
+\textit{Original prototype:} \texttt{Other member's work/eco 317 project 2 steps 4-5.py}.
+Ported into the project modules above, cleaned of REPL prompts, and adapted to the project's callback-style solver API.
+
+\medskip
+\textbf{Rida -- Steps 6--7: Feasibility checks and full Model 1 implementation.}
+\begin{itemize}
+    \item \texttt{models/consumption\_savings.py}:
+    \begin{itemize}
+        \item \texttt{utility} (line~30): CRRA utility $u(c)=(c^{1-\sigma}-1)/(1-\sigma)$ with $\log(c)$ when $\sigma=1$; returns $-\infty$ where $c\leq 0$.
+        \item \texttt{build\_grids} (line~44): creates asset grid and income-shock array from params.
+        \item \texttt{feasibility\_mask} (line~51): returns boolean array shape $(n_a, n_a, n_y)$ marking $(a, a', y)$ triples where $c>0$.
+        \item \texttt{solve} (line~72): main entry point. Pre-computes the utility matrix $u(c)$ for every $(a_i, a'_k, y_j)$ triple, builds a Bellman closure (line~115) that computes $EV = V \cdot P^T$ and maximises over $a'$, calls \texttt{solvers.vfi.iterate}, then extracts savings policy $a'(a,y)$ and consumption policy $c(a,y)$ from the budget constraint.
+    \end{itemize}
+    \item \texttt{tests/test\_model1.py} -- convergence, consumption positivity, no-NaN, shape consistency, policy bounds.
+\end{itemize}
+\textit{Original submission:} \texttt{Other member's work/Rida's code/feasibility checks} (Bash smoke-test script).
+Converted into Python \texttt{pytest} tests and used as acceptance criteria for the Model~1 solve.
+
+\medskip
+\textbf{Lindsey -- Steps 8--9: Simulation and forecast logic.}
+\begin{itemize}
+    \item \texttt{simulation/simulate.py}:
+    \begin{itemize}
+        \item \texttt{simulate\_model} (line~19): main dispatch function; calls model-specific helpers below.
+        \item \texttt{\_simulate\_model1} (line~80): draws a Markov shock path via \texttt{utils.markov.simulate\_shock\_path}, then for each period $t$: reads shock $s_t$, looks up $y_t$, interpolates $c_t$ and $a_{t+1}$ from the solved policies using \texttt{utils.interpolation.interp\_policy}. Returns dict with keys \texttt{a}, \texttt{c}, \texttt{y}, \texttt{shock\_idx}.
+        \item \texttt{\_simulate\_model2} (line~104): same pattern for the Robinson Crusoe model; also computes $Y_t = z_t F(k_t)$ and investment $I_t = k_{t+1} - (1-\delta)k_t$.
+        \item \texttt{\_simulate\_model3\_assets} (line~140): simulates the asset-inclusive labor model; interpolates savings, labor, and consumption policies on the asset grid.
+        \item \texttt{\_simulate\_model3\_labor\_only} (line~171): direct index lookup (no interpolation needed since there is no continuous state).
+    \end{itemize}
+    \item \texttt{simulation/forecast.py}:
+    \begin{itemize}
+        \item \texttt{forecast\_model} (line~15): main dispatch; takes a user-chosen shock sequence and current state.
+        \item \texttt{\_forecast\_model1} (line~64): deterministic forward iteration using the same interpolated policies as simulation but with the user-specified shock path instead of random draws.
+        \item \texttt{\_forecast\_model2} (line~90): same for Robinson Crusoe, including $Y$ and investment.
+        \item \texttt{\_forecast\_model3\_assets} (line~128): same for asset-inclusive labor model.
+        \item \texttt{\_forecast\_model3\_labor\_only} (line~161): direct lookup for the labor-only variant.
+    \end{itemize}
+    \item \texttt{tests/test\_simulation.py} -- 13 tests for deterministic simulation (seed, lengths, consumption $>0$, moments compatibility) and forecast (horizon, shock-path sensitivity).
+\end{itemize}
+\textit{Original draft:} \texttt{Other member's work/Lindsey code/simulate.py} and \texttt{forecast.py}. Ported into \texttt{simulation/} and wired to project \texttt{utils.markov} and \texttt{utils.interpolation}; \texttt{app.py} calls these functions in Section~5 (forecast) and Section~2 (simulation).
+
+\medskip
+\textbf{Ben -- Steps 10--11: Model 2 and Model 3 implementation.} \textit{(Fully integrated.)}
+\begin{itemize}
+    \item \texttt{models/robinson\_crusoe.py}:
+    \begin{itemize}
+        \item \texttt{production} (line~33): Cobb--Douglas $Y = z \cdot A \cdot k^\alpha$.
+        \item \texttt{utility} (line~39): CRRA with $\log$ case; returns $-\infty$ where $c\leq 0$.
+        \item \texttt{build\_grids} (line~52): creates capital grid and TFP shock array.
+        \item \texttt{solve} (line~59): pre-computes cash-on-hand $\text{coh}_{i,j} = z_j A k_i^\alpha + (1-\delta)k_i$ and consumption $c_{i,j,ip} = \text{coh}_{i,j} - k'_{ip}$ for every $(k_i, z_j, k'_{ip})$ triple. Builds Bellman closure (line~100) that computes $EV = V \cdot P^T$ then forms RHS $= u + \beta \cdot EV$ and maximises over $k'$ (axis~2). Calls \texttt{solvers.vfi.iterate}. Extracts capital policy $k'(k,z)$ and consumption policy from the resource constraint. \textbf{Timing comment at top of file: ``$Y_{t+1}=F(K_{t+1})$'' per course notes.}
+    \end{itemize}
+    \item \texttt{models/labor\_supply.py}:
+    \begin{itemize}
+        \item \texttt{utility} (line~33): separable $u(c,1-L) = \frac{c^{1-\sigma}-1}{1-\sigma} + \psi\frac{(1-L)^{1-\nu}-1}{1-\nu}$ with $\log$ cases; returns $-\infty$ where $c\leq 0$ or leisure $\leq 0$.
+        \item \texttt{build\_grids} (line~57): creates asset grid (optional), labor grid $[0,1]$, and wage shock array.
+        \item \texttt{\_solve\_with\_assets} (line~69): \textbf{joint search over $(a', L)$}. For each $(a_i, w_j)$ pair, computes $c = (1+r)a_i + w_j L - a'$ for every $(a', L)$ combination, evaluates utility, adds $\beta \cdot EV$, flattens the two control dimensions, and takes \texttt{argmax}. Unflattens via \texttt{savings\_idx = flat\_idx // n\_L} and \texttt{labor\_idx = flat\_idx \% n\_L} (line~118--119). Returns savings, labor, and consumption policies.
+        \item \texttt{\_solve\_labor\_only} (line~144): simpler variant without assets; maximises over $L$ only.
+        \item \texttt{solve} (line~192): public entry point; dispatches to asset-inclusive or labor-only based on \texttt{include\_assets} flag.
+        \item \texttt{labor\_vs\_wage\_for\_plot} (line~222): helper for the static intuition graph in \texttt{app.py}.
+    \end{itemize}
+    \item \texttt{tests/test\_model2.py} -- convergence, consumption positivity, shape, capital policy bounds.
+    \item \texttt{tests/test\_model3.py} -- convergence, labor $\in [0,1]$, consumption positivity, shape for both variants.
+\end{itemize}
+\textit{Original draft:} \texttt{Other member's work/Ben's Code/robinson\_crusoe.py} and \texttt{labor\_supply.py}. Ported into \texttt{models/}, adapted to the callback-style VFI API, and wired into the unified simulation and forecast dispatchers.
+
+\medskip
+\textbf{Shared -- Steps 12--18: Integration, dashboard, styling, testing, prompt log, rehearsal.}
+\begin{itemize}
+    \item \texttt{app.py} -- Streamlit entry point (300+ lines). Organised into six numbered sections:
+    \begin{itemize}
+        \item \textbf{Section 1} (line~$\sim$160): Value function and policy function plots for the selected model.
+        \item \textbf{Section 2} (line~$\sim$210): Stochastic simulation (calls \texttt{simulation.simulate.simulate\_model}).
+        \item \textbf{Section 3} (line~$\sim$230): Summary statistics table (calls \texttt{simulation.moments.compute\_moments}).
+        \item \textbf{Section 4} (line~$\sim$245): Dynamic AI ``Intelligent'' summaries -- f-string text blocks that analyse the simulation moments live (variance ratio, consumption smoothing, MPC, labor responsiveness, etc.).
+        \item \textbf{Section 5} (line~$\sim$305): Exact non-linear forecasting -- user selects High/Low shocks from dropdowns, forecast horizon slider, calls \texttt{simulation.forecast.forecast\_model}.
+        \item \textbf{Section 6} (line~$\sim$370): Static intuition and comparative statics -- MPC graph (Model~1), steady-state capital vs.\ beta (Model~2), labor vs.\ wage bar chart (Model~3).
+    \end{itemize}
+    \item \texttt{app.py} sidebar: model selector (\texttt{st.selectbox}), core parameter sliders ($\beta$, $\sigma$), Markov transition matrix sliders ($P_{00}$, $P_{11}$), model-specific sliders ($r$, $\alpha$, $\delta$, $\psi$, $\nu$, initial wealth), simulation settings ($T$, seed).
+    \item \texttt{app.py} caching: three \texttt{@st.cache\_data} wrapper functions (\texttt{\_solve\_model1}, \texttt{\_solve\_model2}, \texttt{\_solve\_model3}) so the VFI only reruns when its specific parameters change.
+    \item \texttt{config.py} -- default parameters for all three models (\texttt{MODEL1\_DEFAULTS}, \texttt{MODEL2\_DEFAULTS}, \texttt{MODEL3\_DEFAULTS}), simulation settings (\texttt{SIM\_DEFAULTS}), VFI tolerances (\texttt{VFI\_DEFAULTS}).
+    \item \texttt{assets/style.css} -- dark navy background (\texttt{\#0e1a2b}), EB Garamond font import with serif fallback, white chart cards, sidebar styling.
+    \item \texttt{tests/test\_utils.py} -- 18 tests covering grids, Markov validation, interpolation.
+    \item \texttt{tests/test\_moments.py} -- 6 tests verifying moment calculations against direct \texttt{numpy} results.
+    \item \texttt{requirements.txt} -- \texttt{streamlit numpy pandas matplotlib plotly pytest}.
+\end{itemize}
+\end{intuitbox}
+
+\section{Final Demo and Validation Checklist}
+
+\subsection{Definition of done}
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item The equations match the course notes.
+    \item All three models solve over the infinite horizon with VFI.
+    \item Each model uses a two-state Markov shock.
+    \item Each model simulates at least 100 periods.
+    \item Forecasts come from solved policy functions.
+    \item The app shows graphs, moments, and dynamic summaries.
+    \item The dashboard supports parameter sliders and smooth model switching.
+    \item The styling is presentation-ready.
+    \item The code is commented and the prompt log exists.
+    \item The project runs from scratch on the laptop used for the demo.
+\end{enumerate}
+
+\subsection{Live-demo checklist}
+\begin{itemize}
+    \item \texttt{pip install -r requirements.txt} works cleanly.
+    \item \texttt{streamlit run app.py} launches without manual fixes.
+    \item Model 1, Model 2, and Model 3 all load.
+    \item The slider changes are responsive enough for a live walkthrough.
+    \item Forecast controls visibly change the forecast path.
+    \item Comparative statics visibly change at least one policy or time-series graph.
+    \item Moments displayed in the app are numerically correct.
+    \item The team can explain Bellman logic, feasibility checks, Markov shocks, interpolation, caching, and AI verification.
+\end{itemize}
+
+\begin{goalbox}
+\textbf{Bottom line.} The best version of this assignment is the one where the economics are locked in first, the numerical methods are trustworthy second, and the dashboard polish comes third. If the group can launch the app from scratch, change parameters live, and explain exactly why the code is economically correct, the project is in strong shape.
+\end{goalbox}
+
+\end{document}

@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;600&display=swap');
+
+html, body, [class*="css"] {
+    font-family: "EB Garamond", Garamond, serif;
+}
+
+.stApp {
+    color: var(--text-color, inherit);
+}
+
+h1, h2, h3, h4, h5, h6,
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+    color: var(--text-color, inherit) !important;
+}
+
+[data-testid="stSidebar"] {
+    color: var(--text-color, inherit);
+}
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stSlider label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span {
+    color: var(--text-color, inherit) !important;
+}
+
+button[data-baseweb="tab"] {
+    color: var(--text-color, inherit) !important;
+    font-family: "EB Garamond", Garamond, serif !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    border-bottom: 3px solid #e74c3c !important;
+}
+
+[data-testid="stMetric"] {
+    background: var(--secondary-background-color, #f0f2f6);
+    color: var(--text-color, #111);
+    border-radius: 8px;
+    padding: 8px;
+}
+[data-testid="stMetric"] label,
+[data-testid="stMetric"] [data-testid="stMetricValue"],
+[data-testid="stMetric"] [data-testid="stMetricDelta"] {
+    color: var(--text-color, #111) !important;
+}
+
+[data-testid="stDataFrame"],
+.stDataFrame {
+    color: var(--text-color, inherit) !important;
+}
+
+.stMarkdown, .stMarkdown p, .stMarkdown li,
+.stMarkdown td, .stMarkdown th {
+    color: var(--text-color, inherit) !important;
+}
+
+.stSelectbox label, .stMultiSelect label, .stNumberInput label {
+    color: var(--text-color, inherit) !important;
+}
+
+.katex, .katex-display {
+    color: var(--text-color, inherit) !important;
+}
+
+.stAlert p {
+    color: inherit !important;
+}
+
+.stCheckbox label span {
+    color: var(--text-color, inherit) !important;
+}

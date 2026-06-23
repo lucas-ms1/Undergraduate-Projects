@@ -1,0 +1,22 @@
+# ECO 317 Project 4 - The Capstone Macroeconomic Engine
+# Install with: pip install -r requirements.txt
+
+# Core framework
+streamlit>=1.30.0
+
+# Numerical / scientific
+numpy>=1.24.0
+scipy>=1.11.0
+pandas>=2.0.0
+
+# Visualization
+plotly>=5.18.0
+matplotlib>=3.7.0
+kaleido>=0.2.1          # Plotly PNG export
+
+# Data retrieval
+fredapi>=0.5.1          # FRED API
+yfinance>=0.2.31        # Yahoo Finance
+
+# Econometrics
+statsmodels>=0.14.0     # HP filter, OLS, etc.

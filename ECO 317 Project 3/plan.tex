@@ -1,0 +1,914 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=0.95in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{enumitem}
+\usepackage{array,booktabs,longtable,tabularx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
+\usepackage{titlesec}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\definecolor{myblue}{RGB}{20,55,90}
+\definecolor{mygray}{RGB}{245,245,245}
+\definecolor{mygreen}{RGB}{20,110,70}
+\definecolor{myorange}{RGB}{200,120,20}
+
+\titleformat{\section}{\large\bfseries\color{myblue}}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{myblue}}{\thesubsection.}{0.5em}{}
+
+\lstdefinestyle{mystyle}{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{mygray},
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    columns=fullflexible
+}
+
+\lstset{style=mystyle}
+\setlist[itemize]{nosep,leftmargin=1.4em}
+\setlist[enumerate]{nosep,leftmargin=1.6em}
+
+\newtcolorbox{goalbox}{
+    colback=blue!3,
+    colframe=myblue,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{warningbox}{
+    colback=red!2,
+    colframe=red!55!black,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{notebox}{
+    colback=yellow!5,
+    colframe=myorange,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newtcolorbox{intuitbox}{
+    colback=green!3,
+    colframe=mygreen,
+    boxrule=0.8pt,
+    arc=2pt
+}
+
+\newcommand{\nameblank}{\underline{\hspace{4.5cm}}}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Unified Project Plan: AI-Assisted Fiscal Policy Dashboard}}\\[0.4em]
+    {\large ECO 317 -- Assignment \#3}\\[0.4em]
+    \rule{0.9\linewidth}{0.5pt}
+\end{center}
+
+\begin{goalbox}
+\textbf{Project goal in plain language.} Build one Streamlit app that solves a medium-scale Smets--Wouters (2007) style DSGE model, uses QZ decomposition (Blanchard--Kahn) to produce the rational-expectations solution, simulates 1{,}000 periods of unconditional business-cycle dynamics, runs 40-quarter fiscal experiments with user-chosen financing rules, reports impact and cumulative multipliers with IRFs for output, consumption, investment, and debt, uses polished academic styling (dark/navy background, Garamond font), and is reliable enough to launch live with \texttt{streamlit run app.py} in front of the professor.
+\end{goalbox}
+
+\section{Team Roster}
+
+\begin{tabularx}{\linewidth}{@{}p{3.5cm}X@{}}
+\toprule
+\textbf{Role} & \textbf{Member} \\
+\midrule
+Member 1 & \nameblank \\
+Member 2 & \nameblank \\
+Member 3 & \nameblank \\
+Member 4 & \nameblank \\
+Member 5 & \nameblank \\
+Member 6 & \nameblank \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{How to use this sheet.} Each teammate signs their name next to the steps they own in the ownership table at the end of the document. The blanks here are the master list. Max 6 per group per the assignment.
+\end{notebox}
+
+\section{Project Objective and Assignment Requirements}
+
+\subsection{What the finished project must do}
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item Simulate a linearized medium-scale Smets--Wouters style economy with:
+    \begin{itemize}
+        \item a fraction of ``rule-of-thumb'' (non-Ricardian) households alongside forward-looking optimizers,
+        \item habit formation in consumption ($h$),
+        \item variable capital utilization (cost convexity $\psi$),
+        \item Calvo price stickiness ($\theta_p$),
+        \item Calvo wage stickiness ($\theta_w$),
+        \item a fiscal rule with debt-feedback aggressiveness ($\phi_b$).
+    \end{itemize}
+    \item Solve the linear rational-expectations system using Blanchard--Kahn conditions or the generalized Schur (QZ) decomposition (e.g., \texttt{scipy.linalg.ordqz}).
+    \item Provide a unified Streamlit dashboard with a \textbf{tabbed interface}:
+    \begin{itemize}
+        \item \textbf{Tab 1 -- Model Fit (Unconditional Dynamics):} simulate at least 1{,}000 periods, report $\geq 10$ business-cycle moments, dynamic f-string economic commentary.
+        \item \textbf{Tab 2 -- Fiscal Exercises (Conditional Policy):} 40-quarter IRFs for $G_c$ shock, $G_I$ shock, labor-tax cut, capital-tax cut; financing-rule selector; impact and cumulative multipliers; automated policy briefing.
+    \end{itemize}
+    \item Global sidebar with continuous sliders for all structural parameters above.
+    \item Variable financing rules: Lump-Sum transfers, Consumption Tax Hikes, Labor Tax Hikes, Capital Tax Hikes, Government Spending Cuts.
+    \item Impact multiplier and cumulative multiplier (discounted sum of output response divided by discounted sum of the shock).
+    \item IRF subplots for Output, Consumption, Investment, Government Debt.
+    \item ``Fiscal Drag Horizon'' -- the exact quarter when distortionary financing forces output below steady state.
+    \item Dark/navy interface with bright white chart areas and Garamond font throughout.
+    \item Dynamic written summaries built from live results using Python f-strings.
+    \item Be explainable by any teammate during the live demo.
+\end{enumerate}
+
+\subsection{Suggested project folder structure}
+Project 3 starts from a clean folder. Before anyone writes serious code, the group should agree on a skeleton so later steps have a target. The suggested layout below mirrors the Project~2 style and keeps UI logic separate from economics and numerics.
+
+\begin{lstlisting}
+ECO 317 Project 3/
+|-- app.py
+|-- config.py
+|-- README.md
+|-- requirements.txt
+|-- assets/style.css
+|-- dsge/
+|   |-- model.py           # linearized Smets-Wouters equations
+|   |-- steady_state.py    # analytic or numerical SS solver
+|   |-- calibration.py     # baseline parameter values
+|-- solvers/
+|   |-- rational_expectations.py  # QZ / Blanchard-Kahn
+|   |-- state_space.py            # build A, B, C, D matrices
+|-- simulation/
+|   |-- simulate.py        # long-horizon stochastic simulation
+|   |-- moments.py         # variances, correlations, autocorrelations
+|   |-- irf.py             # impulse responses
+|-- policy/
+|   |-- shocks.py          # G_c, G_I, tau_L cut, tau_K cut
+|   |-- financing.py       # lump-sum, cons tax, labor tax, etc.
+|   |-- multipliers.py     # impact and cumulative multipliers
+|-- utils/
+|   |-- summaries.py       # f-string text generators
+|-- tests/
+|   |-- test_steady_state.py
+|   |-- test_blanchard_kahn.py
+|   |-- test_moments.py
+|   |-- test_irf.py
+|   |-- test_multipliers.py
+\end{lstlisting}
+
+\begin{notebox}
+\textbf{Important repo rule.} Once these folders and files are created at the start of Step~3, teammates should \emph{edit} those files or create new files \emph{inside those existing folders} when needed. Do not create a second top-level project layout. Keep UI in \texttt{app.py}, economics in \texttt{dsge/}, numerics in \texttt{solvers/} and \texttt{simulation/}, and policy logic in \texttt{policy/}.
+\end{notebox}
+
+\subsection{How to think about the project}
+\begin{intuitbox}
+\textbf{Simple mental model.} Steady-state pins down the log-linearization point. The DSGE block lists the linearized equations. The QZ solver turns those equations into a state-space transition $x_{t+1}=A x_t + B \varepsilon_{t+1}$ and an observation map $y_t = C x_t$. Unconditional simulation draws random shocks and produces moments (Tab~1). IRFs turn off the random shocks and turn on one fiscal shock, then read the response off the same transition map (Tab~2). Streamlit is just the display layer.
+\end{intuitbox}
+
+\section{Locked-In Model Specs}
+
+\subsection{Shared rules for the DSGE block}
+\begin{tabularx}{\linewidth}{@{}p{3.3cm}X@{}}
+\toprule
+\textbf{Item} & \textbf{Locked-in choice} \\
+\midrule
+Model family & Medium-scale Smets--Wouters (2007) style, linearized around steady state \\
+Households & Mixture of forward-looking optimizers and rule-of-thumb (non-Ricardian) consumers \\
+Frictions & Habit formation, variable capital utilization, Calvo price and wage stickiness \\
+Fiscal block & Government consumption $G_c$, government investment $G_I$, labor tax $\tau_L$, capital tax $\tau_K$, consumption tax $\tau_C$, lump-sum $T$, debt $B$ with rule $\phi_b$ \\
+Monetary block & \textbf{Locked in:} Taylor rule on inflation and output gap (see \S3.5 below). No ``optional'' language -- without a nominal anchor the Phillips curves do not close and Blanchard--Kahn will fail. \\
+Solution method & Blanchard--Kahn / generalized Schur (QZ) decomposition \\
+Simulation target & At least 1{,}000 periods in Tab~1 \\
+IRF horizon & 40 quarters in Tab~2 \\
+Moments & At least 10, covering variances, contemporaneous correlations with output, and first-order autocorrelations of Output, Consumption, Investment, Labor, Inflation \\
+Multipliers & Impact multiplier and cumulative (discounted) multiplier \\
+Runtime text & Deterministic Python f-strings driven by computed moments and IRFs \\
+Dashboard & Single Streamlit app with global sidebar + two tabs \\
+\bottomrule
+\end{tabularx}
+
+\begin{warningbox}
+\textbf{Non-negotiable rule.} If the AI (ChatGPT, Gemini, Claude) produces equations that differ from the course notes or from the Smets--Wouters formulation the group has locked in, the course notes win. The biggest grading risk is not a missing widget. It is a misspecified Euler equation, Phillips curve, or government budget constraint.
+\end{warningbox}
+
+\begin{warningbox}
+\textbf{Known AI-hallucination traps (check every generated block against this list).}
+\begin{itemize}
+    \item \textbf{Calvo Phillips curve.} Intercept dropped or mixed indexed/non-indexed versions. Verify the limit behavior in \S3.3.
+    \item \textbf{Euler with habit.} Shortcut marginal utility $(C_t - hC_{t-1})^{-\sigma}$ used in place of the full internal-habit FOC. We lock in the full FOC in \S3.2.
+    \item \textbf{Missing $\beta$ in the Euler.} The discount factor goes on the $\mathbb{E}_t[\Lambda_{t+1}(1+r_{t+1})]$ side, not the current-period side.
+    \item \textbf{Capital timing.} Period-$t$ production uses $K_{t-1}$, not $K_t$. AI output routinely silently uses $K_t$, which breaks the investment FOC.
+    \item \textbf{Government budget sign errors.} Taxes shrink debt (enter with a minus sign); transfers grow debt (enter with a plus sign). Both sides of \S3.4 must match the sign convention in \S3.2.
+    \item \textbf{Fiscal-rule sign for $G_c$-cut.} Positive $\phi_b$ on a $G_c$-cut rule is a sign error. See \S3.4.
+    \item \textbf{Steady-state ratios in multipliers.} Converting log-deviation IRFs to level multipliers requires multiplying by the steady-state $Y/G$ ratio. Forgetting this scales the multiplier by 5--10x in either direction.
+    \item \textbf{Taylor rule omission.} A Phillips-curve model with no nominal anchor is under-determined; see \S3.5.
+\end{itemize}
+Every AI-generated equation or code block must be cross-checked against this list before it lands on \texttt{main}.
+\end{warningbox}
+
+\subsection{Household block}
+\textbf{Forward-looking optimizers} (fraction $1-\lambda$): maximize expected utility subject to an intertemporal budget constraint with capital, bonds, consumption, and labor. The marginal utility of consumption with \emph{internal} habits is
+\[
+\Lambda_t^o = \left(C_t^o - h C_{t-1}^o\right)^{-\sigma} - \beta h\,\mathbb{E}_t\!\left[\left(C_{t+1}^o - h C_t^o\right)^{-\sigma}\right],
+\]
+and the Euler equation is
+\[
+\Lambda_t^o = \beta\,\mathbb{E}_t\!\left[\Lambda_{t+1}^o (1+r_{t+1})\right].
+\]
+
+\begin{notebox}
+\textbf{Habit-FOC trap.} A shortcut version $\lambda_t^o = (C_t^o - hC_{t-1}^o)^{-\sigma}$ (dropping the $-\beta h \mathbb{E}_t[\cdot]$ term) is common in textbook expositions but materially weakens consumption smoothing. We use the \emph{full} internal-habit FOC above. If time pressure forces the shortcut, that choice must be labeled ``internal habit, no future-habit adjustment'' in \texttt{dsge/model.py} and in the README, and the log-linearization must be consistent with whichever form is used.
+\end{notebox}
+
+\textbf{Rule-of-thumb households} (fraction $\lambda$): no savings, consume all current-period disposable income. Following Gal\'i--L\'opez-Salido--Vall\'es (2007) the budget is
+\[
+(1+\tau_{C,t})\, C_t^{rot} = (1-\tau_{L,t})\, W_t L_t^{rot} + T_t^{rot},
+\]
+so transfers $T_t^{rot}$ \emph{add} to rule-of-thumb consumption (lump-sum transfers are not Ricardian-equivalent here). The sign convention for $T$ is therefore: $T>0$ is a transfer from government to households. Any alternative convention (e.g., $T<0$ as a tax) must be flagged in \texttt{dsge/calibration.py}.
+
+\textbf{Aggregate consumption:} $C_t = (1-\lambda) C_t^o + \lambda C_t^{rot}$.
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+Forward-looking share & $1-\lambda$, slider default TBD in \texttt{config.py} \\
+Habit parameter & $h \in [0,1)$, slider in sidebar \\
+Utility over consumption & CRRA / log in deviations from habit \\
+Labor disutility & Standard separable; wage Calvo handled at the union level \\
+Budget constraint & Include $\tau_C$, $\tau_L$, $\tau_K$, lump-sum $T$, bonds $B$ \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Firms and price/wage stickiness}
+\[
+\pi_t - \pi_t^{index} = \beta \mathbb{E}_t[\pi_{t+1} - \pi_{t+1}^{index}] + \kappa_p \widehat{mc}_t, \qquad
+\kappa_p = \frac{(1-\theta_p)(1-\beta \theta_p)}{\theta_p}.
+\]
+\[
+\pi_t^w - \pi_t^{w,index} = \beta \mathbb{E}_t[\pi_{t+1}^w - \pi_{t+1}^{w,index}] + \kappa_w (\widehat{mrs}_t - \widehat{w}_t), \qquad
+\kappa_w = \frac{(1-\theta_w)(1-\beta \theta_w)}{\theta_w (1+\varphi \epsilon_w)}.
+\]
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+Price stickiness & Calvo $\theta_p$, slider \\
+Wage stickiness & Calvo $\theta_w$, slider \\
+Capital utilization & Cost convexity $\psi$, slider; variable $u_t$ with quadratic cost \\
+Production & Cobb--Douglas $Y_t = A_t K_t^{\alpha} L_t^{1-\alpha}$ in levels; log-linearized \\
+Marginal cost & $\widehat{mc}_t = (1-\alpha)\widehat{w}_t + \alpha \widehat{r^k}_t - \widehat{A}_t$ \\
+\bottomrule
+\end{tabularx}
+
+\begin{warningbox}
+\textbf{Calvo sign trap.} When the AI writes the Phillips curve it often drops the intercept in $\kappa_p$ or mixes indexed and non-indexed versions. Before trusting the output, verify that $\theta_p \to 0$ gives flexible prices ($\kappa_p \to \infty$) and $\theta_p \to 1$ gives fully sticky prices ($\kappa_p \to 0$). Same logic for $\theta_w$.
+\end{warningbox}
+
+\subsection{Government and fiscal block}
+\[
+B_{t+1} = (1+r_t)\, B_t + G_{c,t} + G_{I,t} + T_t - \tau_{C,t} C_t - \tau_{L,t} W_t L_t - \tau_{K,t} r^k_t K_t.
+\]
+Sign conventions: $B_t$ is the real stock of one-period government debt, $r_t$ is the real return on that debt (tied to the policy rate through the Fisher relation in \S3.5), $T_t>0$ is a lump-sum transfer \emph{from government to households} (appears as a use of funds on the left-hand side, consistent with \S3.2), and tax revenues enter negatively because they shrink the debt stock. These conventions must be matched exactly in \texttt{dsge/model.py}; a sign mistake here will usually produce explosive debt and a silent BK failure.
+
+\[
+\text{Fiscal rule:}\quad \tau_{X,t} = \rho_X\, \tau_{X,t-1} + \phi_{b,X}\, \hat B_t + \varepsilon_{X,t}, \quad X \in \{T,\tau_C,\tau_L,\tau_K,G_c\}.
+\]
+The coefficient $\phi_{b,X}$ is \emph{instrument-specific}. For tax instruments ($\tau_C, \tau_L, \tau_K$) rising debt calls for higher taxes, so $\phi_{b,X} > 0$. For the $G_c$-cut rule the government spending \emph{falls} when debt rises, so $\phi_{b,G_c} < 0$. For the lump-sum rule a rise in $\hat B_t$ triggers a \emph{reduction} in transfers ($T$), again implying a negative coefficient if $T$ is signed as a transfer. The UI slider exposes the magnitude $\phi_b \ge 0$; the sign is applied inside \texttt{policy/financing.py} depending on the selected instrument.
+
+\begin{warningbox}
+\textbf{Sign-flip trap ($G_c$-cut and lump-sum rules).} A naive implementation applies a single positive $\phi_b$ to every instrument, which turns the ``$G_c$ cuts when debt rises'' rule into ``$G_c$ rises when debt rises'' -- i.e., the opposite of what the assignment asks for, and explosive. Verify the sign of the debt response numerically: under the $G_c$-cut rule, a positive debt impulse must produce a decline in $G_{c,t}$.
+\end{warningbox}
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+Debt feedback & $\phi_b$, slider; must be strong enough to stabilize debt \\
+Financing rule & Radio/dropdown picks \textit{which} instrument reacts to debt: Lump-Sum, $\tau_C$, $\tau_L$, $\tau_K$, or $G_c$ cut \\
+Shock menu & $G_c$ up, $G_I$ up, $\tau_L$ cut, $\tau_K$ cut \\
+Government debt & Track $\hat{B}_t$ path explicitly for IRF panel \\
+\bottomrule
+\end{tabularx}
+
+\begin{warningbox}
+\textbf{Budget-constraint trap.} The AI will often write a fiscal shock without closing the government budget constraint. If debt is not stabilized, the model has no stable saddle path and the QZ solver will either fail or silently return nonsense. Always verify the chosen financing instrument actually moves in response to $\hat{B}_t$.
+\end{warningbox}
+
+\subsection{Monetary policy block (locked in before Step 5)}
+The baseline nominal anchor is a standard Taylor rule on inflation and the output gap, with interest-rate smoothing:
+\[
+\hat{i}_t = \rho_i\,\hat{i}_{t-1} + (1-\rho_i)\left[\phi_\pi\, \hat{\pi}_t + \phi_y\, \hat{y}_t\right] + \varepsilon_{i,t},
+\]
+with baseline $\rho_i = 0.8$, $\phi_\pi = 1.5$, $\phi_y = 0.125$. The Fisher relation $\hat{r}_t = \hat{i}_t - \mathbb{E}_t \hat{\pi}_{t+1}$ connects the nominal rate to the real return used in the Euler equation and the government budget.
+
+\begin{warningbox}
+\textbf{Non-optional.} The audit of an earlier draft flagged monetary policy as ``the big hole'': without a rule that pins down $\hat{i}_t$, the two Phillips curves do not close, the system is under-determined, and QZ will either fail BK or silently return indeterminate solutions. The Taylor rule above must be in \texttt{dsge/model.py} \emph{before} Step~6 runs, or (only as a fallback) the group must impose an explicit interest-rate peg $\hat{i}_t = 0$ plus a Wicksellian price-level target.
+\end{warningbox}
+
+\begin{tabularx}{\linewidth}{@{}p{3.1cm}X@{}}
+\toprule
+\textbf{Field} & \textbf{Decision} \\
+\midrule
+Rule family & Taylor rule with smoothing on $\hat{i}_t, \hat{\pi}_t, \hat{y}_t$ \\
+Baseline coefficients & $\rho_i=0.8$, $\phi_\pi=1.5$, $\phi_y=0.125$; sliders optional, default fixed \\
+Determinacy region & Require $\phi_\pi > 1$ (Taylor principle) -- flag a warning in the UI if the user drops below \\
+Zero lower bound & Not modeled; the system is in deviations from steady state \\
+\bottomrule
+\end{tabularx}
+
+\subsection{Shock processes}
+All structural shocks follow AR(1) processes in logs:
+\[
+\varepsilon_{X,t} = \rho_X \varepsilon_{X,t-1} + \sigma_X u_{X,t}, \qquad u_{X,t} \sim \mathcal{N}(0,1).
+\]
+Structural shocks carried through Tab~1: TFP ($A_t$), investment-specific, price markup, wage markup, government consumption, \textbf{monetary policy} (Taylor-rule residual $\varepsilon_{i,t}$), risk premium. The group can start with a subset, but TFP plus the monetary shock must be present so the model produces non-degenerate output and inflation dynamics. The fiscal shocks in Tab~2 are imposed deterministically.
+
+\subsection{Cross-module coding convention}
+All model-solve functions should return the same top-level structure:
+\begin{itemize}
+    \item \texttt{steady\_state} (dict of levels)
+    \item \texttt{A\_matrix}, \texttt{B\_matrix} (state-space transition)
+    \item \texttt{C\_matrix}, \texttt{D\_matrix} (observation)
+    \item \texttt{variable\_index} (name $\to$ row)
+    \item \texttt{shock\_index} (name $\to$ column)
+    \item \texttt{diagnostics} (BK conditions, eigenvalues, solver success flag)
+\end{itemize}
+
+\section{Step-by-Step Build Plan}
+
+\subsection{Step 1: Lock the equations before anyone writes serious code}
+\textbf{Owner:} Shared group work
+
+\textbf{Open these files first:}
+\begin{itemize}
+    \item the assignment PDF (\texttt{Assignment Final.pdf}),
+    \item the grading rubric (\texttt{Grading Rubric.pdf}),
+    \item course notes for Smets--Wouters / DSGE,
+    \item \texttt{plan.tex}.
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Confirm the household Euler equation (including habit), labor supply, price and wage Phillips curves, capital accumulation with utilization, and the government budget constraint.
+    \item Agree on variable naming: \texttt{y\_hat}, \texttt{c\_hat}, \texttt{i\_hat}, \texttt{l\_hat}, \texttt{pi\_hat}, \texttt{w\_hat}, \texttt{b\_hat}, \texttt{tau\_L\_hat}, etc.
+    \item Decide exactly which moments Tab~1 will report, in what order.
+    \item Decide which four IRF subplots Tab~2 will show (Output, Consumption, Investment, Debt per the assignment).
+\end{itemize}
+
+\textbf{Done when:} every teammate can answer ``what are the state variables, what are the jump variables, what closes the government budget, and what pins down the steady state?''
+
+\subsection{Step 2: Make sure the environment and root files are usable}
+\textbf{Owner:} Shared group work
+
+\textbf{Create or edit these files:}
+\begin{itemize}
+    \item \texttt{requirements.txt} (streamlit, numpy, scipy, pandas, matplotlib, plotly, pytest)
+    \item \texttt{README.md}
+    \item \texttt{app.py} (skeleton only at this stage)
+    \item \texttt{config.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Set up a virtual environment.
+    \item Confirm \texttt{scipy.linalg.ordqz} is importable -- this is the QZ solver for the rational-expectations system.
+    \item Keep \texttt{README.md} short and accurate so any teammate can install and launch the app.
+    \item Use \texttt{app.py} as the entry point for a ``hello world'' smoke test.
+    \item Use \texttt{config.py} for default parameters (baseline calibration).
+\end{itemize}
+
+\textbf{Beginner note:} if you are unsure whether something belongs in \texttt{app.py} or \texttt{config.py}, put only user-interface code in \texttt{app.py} and put default structural values in \texttt{config.py}.
+
+\textbf{Done when:} \texttt{pip install -r requirements.txt} works and \texttt{streamlit run app.py} opens a basic page with the two empty tabs wired in.
+
+\subsection{Step 3: Create the folder skeleton and lock the git workflow}
+\textbf{Owner:} Shared group work
+
+\textbf{Use the structure shown in Section~2.2.}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Create the \texttt{dsge/}, \texttt{solvers/}, \texttt{simulation/}, \texttt{policy/}, \texttt{utils/}, \texttt{tests/}, \texttt{assets/} folders.
+    \item Add an \texttt{\_\_init\_\_.py} file to each so imports work cleanly.
+    \item Commit the skeleton to \texttt{main}. Everyone pulls before starting their owned step.
+\end{itemize}
+
+\begin{notebox}
+\textbf{Git workflow (all six teammates).} Six people editing one repo without a branching convention is a merge-conflict factory. Lock in: every step gets a feature branch (\texttt{step-5a-private-block}, \texttt{step-8b-fred-empirical}, etc.); no direct pushes to \texttt{main}; every merge goes through a pull request with at least one teammate review; the branch must pass \texttt{pytest} before merge. Large refactors (anything touching \texttt{dsge/model.py} after Step~5b) should announce on the group chat first so parallel work does not collide.
+\end{notebox}
+
+\textbf{Done when:} the group has agreed where each type of code will live, the branching convention is written into \texttt{README.md}, and everyone has pulled the skeleton before the real implementation starts.
+
+\subsection{Step 4: Calibrate the model and build the steady state}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{dsge/calibration.py}
+    \item \texttt{dsge/steady\_state.py}
+    \item \texttt{tests/test\_steady\_state.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Set baseline values: $\beta=0.99$, $\sigma=1$ (log), $\alpha=0.33$, $\delta=0.025$, $\epsilon_p$ and $\epsilon_w$ elasticities, $G/Y$ target, debt/GDP target, average tax rates, shock persistences and standard deviations.
+    \item Solve the deterministic steady state. For Smets--Wouters this is mostly analytical: pick $r^k$ from $\beta$, back out $K/L$, then $w$, $Y$, $I$, $C$ from ratios.
+    \item Return a dictionary of steady-state levels used by every other module.
+\end{itemize}
+
+\textbf{Done when:} the steady state satisfies the resource constraint, the government budget, and the labor first-order condition to within numerical tolerance, and \texttt{test\_steady\_state.py} passes.
+
+\subsection{Step 5a: Linearize the private-sector block (households and firms)}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{dsge/model.py} (household + firm equations)
+    \item \texttt{tests/test\_model\_private.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Log-linearize: Euler equation with habit (full FOC from \S3.2), rule-of-thumb consumption, aggregate consumption, capital accumulation with utilization, investment first-order condition (Q equation), labor supply, price Phillips curve, wage Phillips curve, production function, marginal cost, resource constraint.
+    \item Watch the timing convention: capital entering period-$t$ production is $K_{t-1}$ (end-of-previous-period stock). This is a common AI-hallucination trap.
+    \item Unit-test by plugging in arbitrary coefficients and checking matrix shapes; test that $\kappa_p\to 0$ as $\theta_p\to 1$.
+\end{itemize}
+
+\textbf{Done when:} the private-block equations compile into the row-block of $\Gamma_0, \Gamma_1$ with the correct dimensions and pass shape / sign tests.
+
+\subsection{Step 5b: Linearize the policy block and build the full state-space form}
+\textbf{Owner:} \nameblank{} (different person from Step~5a)
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{dsge/model.py} (government + monetary equations)
+    \item \texttt{solvers/state\_space.py}
+    \item \texttt{tests/test\_model\_policy.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Log-linearize: government budget constraint, fiscal rule (with the instrument-specific sign from \S3.4), Taylor rule, Fisher relation, AR(1)s for every structural shock including the Taylor-rule residual.
+    \item Assemble the full Sims/Klein canonical form
+    \[
+        \Gamma_0 \, x_t = \Gamma_1 \, x_{t-1} + \Psi \, \varepsilon_t + \Pi \, \eta_t,
+    \]
+    where $\eta_t$ collects expectational errors.
+    \item Expose \texttt{build\_system(params)} returning $\Gamma_0, \Gamma_1, \Psi, \Pi$ and a variable/shock index.
+\end{itemize}
+
+\begin{notebox}
+\textbf{License for downstream owners to start early.} Owners of Steps~6--11 should \emph{not} wait for Step~5b to finish. Each downstream module takes a dict with keys \texttt{A\_matrix, B\_matrix, variable\_index, shock\_index} (see \S3.6). While Step~5 is in progress, Steps~6--11 can be written against a stub that returns a small, hand-coded $(A, B)$ for a toy two-equation system. The integration test comes at the end of Step~5b.
+\end{notebox}
+
+\textbf{Done when:} \texttt{build\_system(params)} returns $\Gamma_0, \Gamma_1, \Psi, \Pi$ with correct dimensions, no hard-coded magic numbers, and private-block + policy-block integration tests both pass.
+
+\subsection{Step 6: Solve the rational-expectations system with QZ decomposition}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{solvers/rational\_expectations.py}
+    \item \texttt{tests/test\_blanchard\_kahn.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Use \texttt{scipy.linalg.ordqz} to order the generalized Schur decomposition.
+    \item Count explosive eigenvalues $|\lambda|>1+\varepsilon_{\mathrm{tol}}$ and compare to the number of jump variables -- Blanchard--Kahn condition. Use a documented numerical tolerance (default $\varepsilon_{\mathrm{tol}}=10^{-6}$) so that a near-unit-root eigenvalue does not flip the BK count unpredictably.
+    \item Handle complex conjugate pairs: count the pair together, not as two separate explosive roots, and log any eigenvalues that fall inside a small band around $|\lambda|=1$.
+    \item Return the reduced-form transition $x_{t+1} = A x_t + B \varepsilon_{t+1}$ plus a \texttt{converged} / \texttt{indeterminacy} / \texttt{no\_solution} flag, along with the eigenvalue list for diagnostics.
+    \item If \texttt{ordqz} raises or the reordering pivot is ill-conditioned, catch the exception, tag the result as \texttt{no\_solution}, and return rather than crashing the app.
+    \item Use the same callback pattern as Project~2's solver so downstream code does not care which algorithm was chosen.
+\end{itemize}
+
+\begin{lstlisting}
+AA, BB, alpha, beta_, Q, Z = scipy.linalg.ordqz(
+    Gamma0, Gamma1, sort=lambda a, b: np.abs(a) < np.abs(b)
+)
+# Blanchard-Kahn: # explosive eigenvalues == # jump variables
+\end{lstlisting}
+
+\textbf{Done when:} for a baseline calibration the solver reports BK satisfied, and for a deliberately bad calibration (e.g., $\phi_b=0$) it reports indeterminacy or no solution instead of silently returning garbage.
+
+\subsection{Step 7: Add sanity checks for eigenvalues and budget constraints}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{solvers/rational\_expectations.py}
+    \item \texttt{dsge/model.py}
+    \item \texttt{tests/test\_blanchard\_kahn.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Add a pre-solve check that every equation in \texttt{dsge/model.py} is in the system exactly once.
+    \item Add a post-solve check that the government budget residual, computed from the simulated paths, is zero up to numerical tolerance.
+    \item For Tab~2, verify that the chosen financing rule actually moves when $\hat{B}_t$ moves (and in the \emph{correct direction} -- see \S3.4 sign-flip warning).
+    \item \textbf{Indeterminacy UX.} When the solver flag is \texttt{indeterminacy} or \texttt{no\_solution}, surface a \texttt{st.error} at the top of Tab~1 and Tab~2 with a one-line suggestion based on which parameter is most likely responsible (e.g., $\phi_b$ too small, $\phi_\pi < 1$, $\theta_p$ at a boundary). Blank the IRF plots rather than rendering a stale cached figure.
+    \item \textbf{Separate caching.} Cache the \emph{solve} (structural parameters $\to (A,B)$) and the \emph{simulate} (shock variances, seed $\to$ simulated moments) on different \texttt{@st.cache\_data} decorators. Moving a shock-variance slider should not trigger a re-solve; moving a Calvo slider should invalidate the solve but keep the RNG seed stable.
+\end{itemize}
+
+\textbf{Done when:} extreme parameter choices fail cleanly (with a Streamlit-visible message) instead of producing nonsense IRFs, and the app does not re-solve when only shock-variance sliders move.
+
+\subsection{Step 8: Build Tab 1 -- unconditional simulation and moments}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{simulation/simulate.py}
+    \item \texttt{simulation/moments.py}
+    \item \texttt{tests/test\_moments.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Given $A$ and $B$, draw $T=1000$ periods of i.i.d.\ normal shocks and propagate $x_{t+1} = A x_t + B \varepsilon_{t+1}$.
+    \item Extract observable series: $\hat{y}_t, \hat{c}_t, \hat{i}_t, \hat{l}_t, \hat{\pi}_t$.
+    \item Compute at least 10 moments: variance of each, correlation of each with output, and first-order autocorrelation of each.
+    \item \textbf{Filtering convention.} The model produces log-deviations from steady state directly, so no detrending is needed on the \emph{simulated} side. When comparing to the FRED empirical block in Step~8b, apply an HP filter ($\lambda=1600$, quarterly) to the empirical series so the two sides are on the same footing. Store both the raw log-deviation moments and the HP-filtered moments.
+    \item Seed the RNG so the same parameters give the same numbers.
+\end{itemize}
+
+\textbf{Done when:} the same seed gives identical moments, and the variance ratios pass basic sanity (consumption volatility should fall below output volatility when $h$ is high; investment volatility should exceed output volatility).
+
+\subsection{Step 8b: Empirical moments from FRED (Data Retrieval rubric row)}
+\textbf{Owner:} \nameblank{} (pairs with Step~8 owner)
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{simulation/empirical.py}
+    \item \texttt{tests/test\_empirical.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Pull US quarterly real GDP (\texttt{GDPC1}), real personal consumption (\texttt{PCECC96}), real private nonresidential investment (\texttt{PNFIC1}), aggregate hours (e.g., \texttt{HOABS}), and CPI inflation (\texttt{CPIAUCSL}) from FRED via \texttt{pandas-datareader} or \texttt{fredapi}.
+    \item Log-transform levels, HP-filter with $\lambda=1600$, and compute the same moments (variance, output correlation, first-order autocorrelation) on the cyclical components.
+    \item In Tab~1, render a side-by-side table: model moments vs.\ empirical moments, with a ratio or absolute-difference column. The f-string commentary in Step~9 should reference this comparison (``the model reproduces $X/Y$ of empirical consumption volatility'').
+    \item Cache the FRED pull on disk (\texttt{@st.cache\_data} with \texttt{ttl=24h}); the data should not be refetched on every slider move.
+\end{itemize}
+
+\begin{notebox}
+\textbf{Why this step exists.} The rubric has a Data Retrieval \& Integrity row that a pure theory model does not naturally satisfy. Adding an empirical moment-matching block turns moment comparison into a genuine data exercise (retrieve, clean, align frequency, filter, document) and is what lifts that rubric row from 3 to 4.
+\end{notebox}
+
+\textbf{Done when:} the empirical moment table loads on first app launch, Tab~1 shows model and empirical moments next to each other, the FRED fetch is cached, and the difference column updates whenever the structural sliders move.
+
+\subsection{Step 9: Build Tab 1 dynamic commentary}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{utils/summaries.py}
+    \item \texttt{app.py} (Tab~1 section)
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Write deterministic f-string generators that take the moments dictionary and output a paragraph or two of plain-English interpretation.
+    \item Examples: ``With $h=0.7$, consumption volatility is $X\%$ of output volatility, consistent with the stylized fact that consumption is smoother than output.''
+    \item Tie at least one sentence to each slider: habit, utilization, price stickiness, wage stickiness, debt feedback.
+\end{itemize}
+
+\textbf{Done when:} the text block in Tab~1 changes correctly and non-trivially as each slider moves.
+
+\subsection{Step 10: Build Tab 2 -- fiscal shocks and financing rules}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{policy/shocks.py}
+    \item \texttt{policy/financing.py}
+    \item \texttt{simulation/irf.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Define each fiscal shock as a unit impulse to the appropriate AR(1) innovation: $\varepsilon_{G_c}$, $\varepsilon_{G_I}$, negative $\varepsilon_{\tau_L}$, negative $\varepsilon_{\tau_K}$.
+    \item Implement the financing-rule selector: modify which fiscal instrument has non-zero $\phi_b$ coefficient before calling the solver.
+    \item Compute the 40-quarter IRF by setting $x_0=0$, injecting the chosen $\varepsilon$, and iterating $x_{t+1}=A x_t$.
+    \item Return IRFs for at least output, consumption, investment, and government debt; add extras (inflation, labor, real wage) if easy.
+\end{itemize}
+
+\textbf{Done when:} switching the financing rule from Lump-Sum to Capital Tax Hikes visibly reduces the cumulative output response (the Q\&A question in the assignment).
+
+\subsection{Step 11: Multipliers and Fiscal Drag Horizon}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{policy/multipliers.py}
+    \item \texttt{tests/test\_multipliers.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Impact multiplier: $\text{IM} = \Delta Y_0 / \Delta G_0$ in level terms (convert from log deviations using steady-state ratios).
+    \item Cumulative multiplier: $\text{CM}(H) = \frac{\sum_{t=0}^{H} \beta^t \Delta Y_t}{\sum_{t=0}^{H} \beta^t \Delta G_t}$.
+    \item Fiscal Drag Horizon: smallest $t^{\ast}\geq 1$ with $\Delta Y_{t^{\ast}} < 0$ (return \texttt{None} if it never crosses within the 40-quarter horizon).
+    \item Provide both metrics to the policy-briefing f-string.
+\end{itemize}
+
+\textbf{Done when:} under Lump-Sum financing the multipliers match standard textbook magnitudes for a medium-scale DSGE (IM roughly in $[0.3, 1.2]$ depending on rule-of-thumb share), and distortionary financing visibly lowers them.
+
+\subsection{Step 11b: Econometric analysis on simulated data (Econometrics rubric row)}
+\textbf{Owner:} \nameblank{} (pairs with Step~11 owner)
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{simulation/econometrics.py}
+    \item \texttt{tests/test\_econometrics.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item On the 1{,}000-period simulated series, run at least two OLS regressions with reported coefficients, standard errors, and $R^2$:
+    \begin{itemize}
+        \item \textbf{Taylor-rule recovery:} regress $\hat{i}_t$ on $\hat{\pi}_t, \hat{y}_t, \hat{i}_{t-1}$ and recover $\hat{\phi}_\pi, \hat{\phi}_y, \hat{\rho}_i$. Compare to the structural values set in \S3.5.
+        \item \textbf{Consumption smoothness:} regress $\hat{c}_t$ on $\hat{y}_t$ (plus lags) to recover a smoothness coefficient; compare across habit settings.
+    \end{itemize}
+    \item Report variance ratios ($\mathrm{Var}(\hat{c})/\mathrm{Var}(\hat{y})$, etc.) with bootstrapped standard errors.
+    \item Display the regression table in Tab~1 as a small panel below the moments table.
+\end{itemize}
+
+\begin{notebox}
+\textbf{Why this step exists.} The Econometric Analysis rubric row asks for coefficients, standard errors, and $R^2$. A pure DSGE simulation does not produce these unless we explicitly run regressions on the simulated output. This step plugs the gap.
+\end{notebox}
+
+\textbf{Done when:} the Taylor-rule recovery regression produces estimates within a reasonable band of the structural parameters, and the regression panel updates when sliders move.
+
+\subsection{Step 12: Build Tab 2 IRF plots and policy briefing}
+\textbf{Owner:} \nameblank
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{app.py} (Tab~2 section)
+    \item \texttt{utils/summaries.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Plot four IRF subplots (Output, Consumption, Investment, Debt) with labeled axes, zero-line, and a vertical marker at the Fiscal Drag Horizon.
+    \item \textbf{Composite chart (Visualization rubric row).} Add at least one composite view that shows multiple financing rules simultaneously. The chosen baseline is an overlay of the Output IRF across all five financing rules on the same axes (lump-sum, $\tau_C$, $\tau_L$, $\tau_K$, $G_c$-cut), with a legend and a shaded band showing the range of cumulative multipliers. A second, optional composite: a heatmap of cumulative multiplier as a function of $\phi_b$ (y-axis) $\times$ financing rule (x-axis).
+    \item Add the f-string policy briefing: what shock was run, which financing rule was selected, impact and cumulative multipliers, transmission mechanism summary, drag horizon, and one sentence comparing the selected rule to the lump-sum benchmark on the composite chart.
+\end{itemize}
+
+\textbf{Done when:} a user can click through each shock $\times$ financing-rule combination and get both a coherent picture and coherent text; the composite overlay makes multiplier dispersion visually obvious without the user having to toggle rules one at a time.
+
+\subsection{Step 13: Global sidebar and parameter plumbing}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{app.py}
+    \item \texttt{config.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Add continuous \texttt{st.slider} controls for $h$, $\psi$, $\theta_p$, $\theta_w$, $\phi_b$, rule-of-thumb share $\lambda$, and shock persistences/standard deviations.
+    \item Use the locked-in slider ranges in the table below so boundary cases never put Calvo or habit parameters at degenerate values.
+    \item Cache the \emph{solve} and the \emph{simulate} on separate \texttt{@st.cache\_data} calls so that moving a shock-variance slider (which only changes the simulation) does not force a re-solve, and moving a structural slider (which changes $A, B$) does not invalidate unrelated UI state.
+    \item Confirm the two tabs share a single parameter block via \texttt{st.session\_state}.
+    \item If the solver returns \texttt{indeterminacy} or \texttt{no\_solution}, render the dashboard with \texttt{st.error()} and a one-line suggestion (e.g., ``raise $\phi_b$ above 0.02'' or ``keep $\phi_\pi > 1$''). Never let the IRF plots render on silent failure.
+\end{itemize}
+
+\begin{tabularx}{\linewidth}{@{}p{2.3cm}p{3.2cm}X@{}}
+\toprule
+\textbf{Parameter} & \textbf{Slider range} & \textbf{Notes} \\
+\midrule
+$h$ & $[0.00, 0.95]$ & Closed below, open above 1. Default 0.70. \\
+$\psi$ & $[0.01, 5.00]$ & Cost-of-utilization convexity. $0 =$ free utilization (degenerate); cap at 5 to avoid numerical overflow. Default 0.50. \\
+$\theta_p$ & $[0.10, 0.95]$ & Calvo price. Open bounds avoid $\kappa_p \to \infty$ (perfectly flexible) and $\kappa_p = 0$ (perfectly sticky). Default 0.75. \\
+$\theta_w$ & $[0.10, 0.95]$ & Calvo wage. Same logic. Default 0.75. \\
+$\phi_b$ & $[0.00, 0.20]$ & Debt-feedback intensity (magnitude). Values below $\approx 0.01$ typically fail BK. Default 0.05. \\
+$\lambda$ & $[0.00, 0.60]$ & Rule-of-thumb share. Default 0.30. Above $\approx 0.6$ multipliers become unrealistic. \\
+$\rho_X$ & $[0.00, 0.99]$ & AR(1) persistence. Default 0.85. \\
+$\sigma_X$ & $[0.001, 0.05]$ & Shock sd. Default 0.007. \\
+\bottomrule
+\end{tabularx}
+
+\textbf{Done when:} a user can move any structural slider and both tabs update within a few seconds, and every parameter slider has explicit, labeled bounds.
+
+\subsection{Step 14: Styling and polish}
+\textbf{Owner:} Shared group work
+
+\textbf{Open or edit these files:}
+\begin{itemize}
+    \item \texttt{assets/style.css}
+    \item \texttt{app.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Dark/navy background (\texttt{\#0e1a2b} or similar), bright white chart cards, high-contrast text.
+    \item Import Garamond (or \texttt{EB Garamond}) with a serif fallback so the app degrades gracefully.
+    \item Ensure tab labels, widget labels, and axis labels are readable on both background states.
+    \item Use consistent colors: one color for output, one for consumption, one for investment, one for debt.
+\end{itemize}
+
+\textbf{Done when:} the app looks intentional; any teammate would be happy to open it in front of the professor.
+
+\subsection{Step 15: Testing and sanity suite (written \emph{alongside} each step, not after)}
+\textbf{Owner:} Shared group work
+
+\begin{warningbox}
+\textbf{Test-driven discipline.} Do not schedule the entire test suite for the end of the build. Each step owner writes the test file for their step \emph{at the same time as the code}. Step~15 is the aggregation / polish pass, not the first time tests get written. The filenames below map one-to-one onto the code steps above (4, 5a, 5b, 6--7, 8, 8b, 10--11, 11b), so a missing test file is a missing step.
+\end{warningbox}
+
+\textbf{Create or edit these files inside the existing \texttt{tests/} folder:}
+\begin{itemize}
+    \item \texttt{tests/test\_steady\_state.py}
+    \item \texttt{tests/test\_model\_private.py}
+    \item \texttt{tests/test\_model\_policy.py}
+    \item \texttt{tests/test\_blanchard\_kahn.py}
+    \item \texttt{tests/test\_moments.py}
+    \item \texttt{tests/test\_empirical.py}
+    \item \texttt{tests/test\_irf.py}
+    \item \texttt{tests/test\_multipliers.py}
+    \item \texttt{tests/test\_econometrics.py}
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item Test that the steady state satisfies every aggregate identity (resource constraint, government budget, labor FOC).
+    \item Test that BK conditions hold at baseline and fail under each deliberately bad calibration (e.g., $\phi_b = 0$, $\phi_\pi < 1$, $\theta_p \to 1^-$).
+    \item Test that moments match direct \texttt{numpy} computations on the simulated series, for both raw and HP-filtered inputs.
+    \item \textbf{IRF tests (beefed up).} ``Decays to zero'' is not enough on its own. Also check: the \emph{sign of the peak} response for each shock (e.g., a $G_c$ shock has positive peak output), the quarter of the peak (should be 0--4 for most shocks), and that under lump-sum financing the impact multiplier lies inside a target band derived from an analytical stripped-down RBC case.
+    \item Test the sign of the debt response under each financing rule, in particular that under the $G_c$-cut rule a positive debt impulse generates a \emph{negative} $G_c$ response.
+    \item Test multipliers under lump-sum financing against a hand-calculated benchmark for the stripped-down RBC case.
+    \item Check for NaNs, infinities, and obviously explosive paths on all IRFs.
+    \item Test the Taylor-rule recovery regression in Step~11b: estimated $\hat{\phi}_\pi$ should land within 10--15\% of the structural value when the sample is long enough.
+\end{itemize}
+
+\textbf{Done when:} the sanity suite passes on a fresh clone, each step has its paired test file, and the dashboard outputs match the underlying numerical data.
+
+\subsection{Step 16: Prompt log and comments}
+\textbf{Owner:} Shared group work
+
+\textbf{Create or edit:}
+\begin{itemize}
+    \item \texttt{prompt\_log.md} in the project root
+    \item comments inside every non-trivial Python file
+\end{itemize}
+
+\textbf{What to do:}
+\begin{itemize}
+    \item For each major AI-assisted component, record the prompt, the file it affected, what was kept, and what was corrected. The assignment explicitly says if the AI misspecifies Calvo, the government budget, or an Euler equation, you must catch and fix it using AI (not by hand).
+    \item Add comments that explain the economics and numerical logic, not just the syntax.
+\end{itemize}
+
+\textbf{Done when:} if the professor points at a block of code during Q\&A, someone can explain what it does and how the AI-generated part was checked.
+
+\subsection{Step 17: Rehearse the live demo}
+\textbf{Owner:} Shared group work
+
+\textbf{What to practice:}
+\begin{itemize}
+    \item run \texttt{pip install -r requirements.txt}
+    \item run \texttt{streamlit run app.py}
+    \item show Tab~1 and read out a few moments, explain what the habit slider did to consumption volatility
+    \item switch to Tab~2, run a $G_c$ shock under Lump-Sum financing, then switch to Capital Tax Hikes, and explain why the cumulative multiplier dropped
+    \item answer code-location questions such as ``where is the QZ decomposition?'', ``where is the government budget constraint enforced?'', ``where is the rule-of-thumb aggregation?''
+\end{itemize}
+
+\begin{notebox}
+\textbf{Expected Q\&A from the assignment PDF.} Be ready for: ``Explain how your prompt incorporated rule-of-thumb consumers into the aggregate consumption Euler equation,'' and ``Why does shifting the financing rule from Lump-Sum to Capital Tax Hikes crash the cumulative multiplier?'' Every teammate should have a two-sentence answer to both.
+\end{notebox}
+
+\textbf{Done when:} any teammate can handle both a random economics question and a random code-workflow question without needing a rescue, in under 10 minutes total.
+
+\section{Team Ownership By Step}
+
+\begin{tabularx}{\linewidth}{@{}p{1.4cm}p{4.5cm}X@{}}
+\toprule
+\textbf{Step} & \textbf{Owner} & \textbf{Main responsibility} \\
+\midrule
+1--3 & Shared & Lock equations, confirm environment, build folder skeleton, agree on git workflow \\
+4 & \nameblank & Calibration and steady state \\
+5a & \nameblank & Linearized private-sector block (households + firms) \\
+5b & \nameblank & Linearized policy block + full state-space assembly \\
+6--7 & \nameblank & QZ decomposition solver and BK / budget-constraint checks \\
+8--9 & \nameblank & Tab~1: unconditional simulation, moments, dynamic commentary \\
+8b & \nameblank & FRED empirical moments, HP filter, model-vs-data table \\
+10--11 & \nameblank & Tab~2: fiscal shocks, financing rules, multipliers, Fiscal Drag Horizon \\
+11b & \nameblank & Taylor-rule / consumption-smoothness regressions on simulated data \\
+12 & \nameblank & Tab~2 IRF plots, composite overlay, automated policy briefing \\
+13--17 & Shared & Sidebar plumbing, styling, tests, prompt log, rehearsal \\
+\bottomrule
+\end{tabularx}
+
+\begin{notebox}
+\textbf{How to use this ownership table.} It does not mean one person works alone forever. It means that person is the first owner of the step, writes the first clean version, and makes sure the rest of the group understands it before the team moves on. Fill in names at the start of the project -- before anyone starts typing Python.
+\end{notebox}
+
+\subsection{Where each member's work lives in the final project}
+
+Use this box during the presentation to quickly point at the file that contains your contribution. If the professor asks ``who wrote this and where is it?'' every teammate should be able to answer immediately. Fill this in as work lands.
+
+\begin{intuitbox}
+\textbf{\nameblank{} -- Step 4: Calibration and steady state.}
+\begin{itemize}
+    \item \texttt{dsge/calibration.py} -- baseline parameter dict.
+    \item \texttt{dsge/steady\_state.py} -- analytical SS solver returning levels.
+    \item \texttt{tests/test\_steady\_state.py} -- resource-constraint, budget-constraint, and FOC residual checks.
+\end{itemize}
+
+\medskip
+\textbf{\nameblank{} -- Step 5: Linearized equations and state-space form.}
+\begin{itemize}
+    \item \texttt{dsge/model.py} -- Euler w/ habit, rule-of-thumb, Phillips curves, wage Phillips curve, capital accumulation w/ utilization, Q equation, resource constraint, government budget, fiscal rule, shock AR(1)s.
+    \item \texttt{solvers/state\_space.py} -- builds $\Gamma_0, \Gamma_1, \Psi, \Pi$ from the parameter dict.
+\end{itemize}
+
+\medskip
+\textbf{\nameblank{} -- Steps 6--7: QZ solver and sanity checks.}
+\begin{itemize}
+    \item \texttt{solvers/rational\_expectations.py} -- \texttt{scipy.linalg.ordqz}, BK count, returns $A$, $B$.
+    \item \texttt{tests/test\_blanchard\_kahn.py} -- baseline satisfies BK; bad calibration fails cleanly.
+    \item Post-solve budget-constraint residual check integrated into \texttt{dsge/model.py}.
+\end{itemize}
+
+\medskip
+\textbf{\nameblank{} -- Steps 8--9: Tab 1 simulation and commentary.}
+\begin{itemize}
+    \item \texttt{simulation/simulate.py} -- 1{,}000-period stochastic simulation.
+    \item \texttt{simulation/moments.py} -- $\geq$ 10 moments (variances, output correlations, first-order autocorrelations).
+    \item \texttt{utils/summaries.py} -- Tab~1 f-string commentary keyed to each slider.
+    \item \texttt{tests/test\_moments.py} -- moments match direct \texttt{numpy} calls.
+\end{itemize}
+
+\medskip
+\textbf{\nameblank{} -- Steps 10--11: Fiscal shocks, financing rules, multipliers.}
+\begin{itemize}
+    \item \texttt{policy/shocks.py} -- $G_c$, $G_I$, $\tau_L$ cut, $\tau_K$ cut as unit impulses.
+    \item \texttt{policy/financing.py} -- Lump-Sum, $\tau_C$, $\tau_L$, $\tau_K$, $G_c$-cut rules.
+    \item \texttt{policy/multipliers.py} -- Impact and cumulative (discounted) multipliers, Fiscal Drag Horizon.
+    \item \texttt{simulation/irf.py} -- 40-quarter deterministic response.
+    \item \texttt{tests/test\_multipliers.py} -- RBC-case benchmark.
+\end{itemize}
+
+\medskip
+\textbf{\nameblank{} -- Step 12: Tab 2 visuals and briefing.}
+\begin{itemize}
+    \item \texttt{app.py} Tab~2 -- 4 IRF subplots, drag-horizon vertical marker, impact/cumulative multiplier readout.
+    \item \texttt{utils/summaries.py} -- policy briefing f-string (shock + financing-rule interaction + drag horizon).
+\end{itemize}
+
+\medskip
+\textbf{Shared -- Steps 13--17: Sidebar, styling, tests, prompt log, rehearsal.}
+\begin{itemize}
+    \item \texttt{app.py} sidebar: continuous sliders for $h$, $\psi$, $\theta_p$, $\theta_w$, $\phi_b$, $\lambda$, shock persistences.
+    \item \texttt{app.py} caching: \texttt{@st.cache\_data} on solve step.
+    \item \texttt{config.py} -- defaults; \texttt{assets/style.css} -- dark/navy + Garamond.
+    \item Full \texttt{tests/} suite, \texttt{prompt\_log.md}, and live-demo rehearsal.
+\end{itemize}
+\end{intuitbox}
+
+\section{Final Demo and Validation Checklist}
+
+\subsection{Definition of done}
+\begin{enumerate}[label=\textbf{\arabic*.}]
+    \item The linearized equations match the course notes and Smets--Wouters structure.
+    \item The steady state satisfies every aggregate identity at machine precision.
+    \item The QZ solver satisfies Blanchard--Kahn at the baseline and fails cleanly otherwise.
+    \item Tab~1 reports at least 10 business-cycle moments over 1{,}000 periods.
+    \item Tab~1 commentary responds to every sidebar slider.
+    \item Tab~2 supports $G_c$, $G_I$, $\tau_L$ cut, and $\tau_K$ cut shocks.
+    \item Tab~2 supports at least Lump-Sum, $\tau_C$, $\tau_L$, $\tau_K$, and $G_c$-cut financing rules.
+    \item Tab~2 reports both impact and cumulative multipliers plus the Fiscal Drag Horizon.
+    \item The dashboard uses dark/navy styling, white charting areas, and Garamond.
+    \item The code is commented and \texttt{prompt\_log.md} exists.
+    \item The project runs from scratch on the laptop used for the demo.
+\end{enumerate}
+
+\subsection{Live-demo checklist}
+\begin{itemize}
+    \item \texttt{pip install -r requirements.txt} works cleanly.
+    \item \texttt{streamlit run app.py} launches without manual fixes.
+    \item Both tabs load; the sidebar sliders update both tabs in real time.
+    \item Tab~1 moments are numerically correct.
+    \item Tab~2 IRF subplots for Output, Consumption, Investment, Debt are labeled and readable.
+    \item Switching the financing rule visibly changes the cumulative multiplier.
+    \item The team can explain: habit formation, Calvo pricing, the government budget constraint, the rule-of-thumb Euler aggregation, QZ / Blanchard--Kahn, impact vs.\ cumulative multiplier, and the Fiscal Drag Horizon.
+\end{itemize}
+
+\begin{goalbox}
+\textbf{Bottom line.} The best version of this assignment is the one where the economics are locked in first, the numerical methods (steady state, QZ, BK) are trustworthy second, and the dashboard polish comes third. If the group can launch the app from scratch, toggle shocks and financing rules live, and explain exactly why the multipliers move the way they do, the project is in strong shape.
+\end{goalbox}
+
+\end{document}
