@@ -1,30 +1,35 @@
-# ECO 317 Project 2 – AI-Assisted Macroeconomic Modeling Dashboard
+# Econ - Macro - VFI Dashboard
 
-Interactive Streamlit dashboard featuring three infinite-horizon stochastic
-models solved by Value Function Iteration (VFI).
+Course project folder for an interactive value-function-iteration dashboard. It includes the final project version, optional enhanced versions, older planning files, and teammate contributions.
 
-## Quick Start
+## Models
+
+- Stochastic consumption-savings.
+- Stochastic Robinson Crusoe production.
+- Endogenous labor supply.
+
+## Contents
+
+- `app.py`: main Streamlit entry point for the root copy.
+- `models/`, `solvers/`, `simulation/`, `utils/`: core model and numerical code.
+- `analysis/`: diagnostics, plots, welfare, calibration, and scoring helpers.
+- `tests/`: pytest validation checks.
+- `Final Project - Lucas, Rida, Lindsey, Aidan, Ben/`: final team submission copy.
+- `Bells and whistles v2/`: enhanced version with additional analysis modules.
+- `Other member's work/`: teammate draft code and supporting files.
+- `old/`: earlier plans and lock-in sheets.
+
+## Run
 
 ```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Project Structure
+## Test
 
-| Path | Purpose |
-|------|---------|
-| `app.py` | Streamlit entry point |
-| `config.py` | Default parameters for all three models |
-| `models/` | Model-specific definitions (utility, constraints, feasibility) |
-| `solvers/` | Generic VFI engine |
-| `simulation/` | Simulation, forecasting, and moment calculation |
-| `utils/` | Shared numerical helpers (grids, Markov, interpolation) |
-| `tests/` | Validation and sanity checks |
-| `assets/` | CSS styling |
-
-## Models
-
-1. **Stochastic Consumption-Savings** – CRRA utility, exogenous income shock
-2. **Stochastic Robinson Crusoe** – Capital accumulation, TFP shock
-3. **Endogenous Labor Supply** – Labor/leisure choice, wage shock
+```bash
+pytest
+```

@@ -1,30 +1,35 @@
-# ECO 317 Project 2 – AI-Assisted Macroeconomic Modeling Dashboard
+# Econ - Macro - Model Solver
 
-Interactive Streamlit dashboard featuring three infinite-horizon stochastic
-models solved by Value Function Iteration (VFI).
+Standalone Streamlit dashboard for solving three infinite-horizon stochastic macroeconomic models with value function iteration.
 
-## Quick Start
+## Models
+
+- Stochastic consumption-savings with CRRA utility and income risk.
+- Stochastic Robinson Crusoe capital-accumulation model with productivity risk.
+- Endogenous labor supply model with wage risk.
+
+## Contents
+
+- `app.py`: Streamlit entry point.
+- `config.py`: model defaults.
+- `models/`: model-specific state, reward, and feasibility logic.
+- `solvers/`: value function iteration routines.
+- `simulation/`: simulations, forecasts, and moments.
+- `analysis/`: diagnostics, plots, calibration, and welfare helpers.
+- `tests/`: validation and sanity checks.
+- `plan.tex` and `plan.pdf`: project plan artifacts.
+
+## Run
 
 ```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Project Structure
+## Test
 
-| Path | Purpose |
-|------|---------|
-| `app.py` | Streamlit entry point |
-| `config.py` | Default parameters for all three models |
-| `models/` | Model-specific definitions (utility, constraints, feasibility) |
-| `solvers/` | Generic VFI engine |
-| `simulation/` | Simulation, forecasting, and moment calculation |
-| `utils/` | Shared numerical helpers (grids, Markov, interpolation) |
-| `tests/` | Validation and sanity checks |
-| `assets/` | CSS styling |
-
-## Models
-
-1. **Stochastic Consumption-Savings** – CRRA utility, exogenous income shock
-2. **Stochastic Robinson Crusoe** – Capital accumulation, TFP shock
-3. **Endogenous Labor Supply** – Labor/leisure choice, wage shock
+```bash
+pytest
+```

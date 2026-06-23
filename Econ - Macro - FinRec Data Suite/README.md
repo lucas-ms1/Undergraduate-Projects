@@ -1,43 +1,30 @@
-# finrec-app (local)
+# Econ - Macro - FinRec Data Suite
 
-A local-first Streamlit app skeleton with:
-- pluggable data/news providers (stubbed initially)
-- background-ish jobs (threaded worker for now)
-- SQLite for job status + logs
-- saved CSV artifacts per job
+Local-first Streamlit application for macro, market, and news data workflows. This is the standalone FinRec data-suite repository imported into the undergraduate projects collection.
 
-## Quickstart
+## Contents
+
+- `streamlit_app.py`: main Streamlit app.
+- `src/finrec/providers/`: market, macro, and news provider interfaces.
+- `src/finrec/recipes/`: transformation and modeling recipes.
+- `src/finrec/storage/`: SQLite-backed job and artifact storage.
+- `src/finrec/ui/`: Streamlit UI helpers.
+- `tests/`: smoke and unit tests.
+
+## Run
+
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-source .venv/bin/activate
-
+.venv\Scripts\activate
 pip install -U pip
 pip install -e ".[dev]"
-
-cp .env.example .env
 streamlit run streamlit_app.py
 ```
 
-## Notes
+If using the Financial Modeling Prep provider, copy `.env.example` to `.env` and set `FINREC_FMP_API_KEY` locally. Do not commit `.env`.
 
-* This is intentionally minimal: providers are stubs that generate synthetic data.
-* Later steps can swap the job runner to a true background worker process and implement real providers.
-
-## Optional extras
-
-Install feature-specific dependencies as needed:
-
-- Forecasting (ETS/ARIMA + ML lags): `pip install -e ".[forecast]"`
-- Market data (FMP via requests, and/or yfinance): `pip install -e ".[market]"`
-- Macro data (FRED via pandas-datareader): `pip install -e ".[macro]"`
-- News (GDELT via requests): `pip install -e ".[news]"`
-- Econometrics (statsmodels): `pip install -e ".[econ]"`
-
-## FMP API key
-
-If you use the Financial Modeling Prep market provider (`provider_id="fmp"`), set your key in `.env`:
+## Test
 
 ```bash
-FINREC_FMP_API_KEY=...
+pytest
 ```

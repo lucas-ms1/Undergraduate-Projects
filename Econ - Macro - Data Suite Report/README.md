@@ -1,43 +1,34 @@
-# Macro Project 1 - Data Suite
+# Econ - Macro - Data Suite Report
 
-A local-first Streamlit app skeleton with:
-- pluggable data/news providers (stubbed initially)
-- background-ish jobs (threaded worker for now)
-- SQLite for job status + logs
-- saved CSV artifacts per job
+Streamlit and Python project for collecting, organizing, and reporting macroeconomic and financial data. The folder also includes the written report artifacts from the coursework submission.
 
-## Quickstart
+## Contents
+
+- `streamlit_app.py`: main Streamlit app.
+- `src/finrec/`: provider, recipe, storage, and visualization code.
+- `legacy_pages/`: earlier Streamlit page layout.
+- `tests/`: pytest checks for recipes, storage, and dataset merge behavior.
+- `main.tex`, `main.pdf`, and related files: report build artifacts.
+- `FEATURE_SUMMARY.md`: feature inventory and implementation notes.
+
+## Run
+
 ```bash
 python -m venv .venv
-# Windows: .venv\Scripts\activate
-source .venv/bin/activate
-
+.venv\Scripts\activate
 pip install -U pip
 pip install -e ".[dev]"
-
-cp .env.example .env
 streamlit run streamlit_app.py
 ```
 
-## Notes
+If using optional data providers, copy `.env.example` to `.env` and add local API keys there. Do not commit `.env`.
 
-* This is intentionally minimal: providers are stubs that generate synthetic data.
-* Later steps can swap the job runner to a true background worker process and implement real providers.
-
-## Optional extras
-
-Install feature-specific dependencies as needed:
-
-- Forecasting (ETS/ARIMA + ML lags): `pip install -e ".[forecast]"`
-- Market data (FMP via requests, and/or yfinance): `pip install -e ".[market]"`
-- Macro data (FRED via pandas-datareader): `pip install -e ".[macro]"`
-- News (GDELT via requests): `pip install -e ".[news]"`
-- Econometrics (statsmodels): `pip install -e ".[econ]"`
-
-## FMP API key
-
-If you use the Financial Modeling Prep market provider (`provider_id="fmp"`), set your key in `.env`:
+## Optional Extras
 
 ```bash
-FINREC_FMP_API_KEY=...
+pip install -e ".[forecast]"
+pip install -e ".[market]"
+pip install -e ".[macro]"
+pip install -e ".[news]"
+pip install -e ".[econ]"
 ```

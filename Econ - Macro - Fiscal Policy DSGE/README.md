@@ -1,55 +1,31 @@
-# ECO 317 Project 3 – AI-Assisted Fiscal Policy Dashboard
+# Econ - Macro - Fiscal Policy DSGE
 
-A Streamlit application that solves a medium-scale Smets–Wouters (2007) style
-DSGE model, simulates unconditional business-cycle dynamics, and runs fiscal
-policy experiments with multiple financing rules.
+Streamlit dashboard for fiscal policy experiments in a medium-scale DSGE model. The app solves a Smets-Wouters-style linearized model, simulates business-cycle dynamics, compares model and empirical moments, and computes fiscal impulse responses under alternative financing rules.
 
-## Quick start
+## Contents
+
+- `app.py`: main Streamlit dashboard.
+- `config.py`: baseline parameters, constants, and slider bounds.
+- `dsge/`: calibration, steady-state, and model-equation code.
+- `solvers/`: state-space and rational-expectations solvers.
+- `simulation/`: stochastic simulation, moments, empirical comparison, and IRFs.
+- `policy/`: fiscal shocks, financing rules, and multiplier calculations.
+- `tests/`: model, solver, simulation, and policy checks.
+- `Submission/` and `Uploads/`: submission copy and supporting uploaded material.
+
+## Run
 
 ```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Project structure
+## Test
 
-```
-ECO 317 Project 3/
-├── app.py                  # Streamlit entry point (two tabs + sidebar)
-├── config.py               # Baseline parameters, slider bounds, constants
-├── requirements.txt
-├── README.md
-├── assets/style.css        # Dark/navy theme with EB Garamond
-├── dsge/
-│   ├── calibration.py      # Baseline parameter dict
-│   ├── steady_state.py     # Analytical steady-state solver
-│   └── model.py            # Linearized equations → Γ₀, Γ₁, Ψ, Π
-├── solvers/
-│   ├── state_space.py      # Build canonical form from parameters
-│   └── rational_expectations.py  # QZ / Blanchard-Kahn solver
-├── simulation/
-│   ├── simulate.py         # 1,000-period stochastic simulation
-│   ├── moments.py          # Variances, correlations, autocorrelations
-│   ├── empirical.py        # FRED data pull + HP-filter moments
-│   ├── econometrics.py     # OLS regressions on simulated data
-│   └── irf.py              # 40-quarter deterministic impulse responses
-├── policy/
-│   ├── shocks.py           # Gc, GI, τL cut, τK cut impulse definitions
-│   ├── financing.py        # Lump-sum, τC, τL, τK, Gc-cut rules
-│   └── multipliers.py      # Impact/cumulative multipliers, drag horizon
-├── utils/
-│   └── summaries.py        # f-string commentary generators
-└── tests/
-    ├── test_steady_state.py
-    ├── test_blanchard_kahn.py
-    ├── test_moments.py
-    ├── test_multipliers.py
-    └── ...
+```bash
+pytest
 ```
 
-## Git workflow
-
-- Feature branches per step (e.g., `step-5a-private-block`)
-- No direct pushes to `main`
-- PRs require one teammate review
-- Branch must pass `pytest` before merge
+Some empirical-data functionality expects a local `FRED_API_KEY` environment variable.
