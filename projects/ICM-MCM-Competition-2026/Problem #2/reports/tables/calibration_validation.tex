@@ -1,0 +1,24 @@
+\begin{table}[H]
+\centering
+\caption{Calibration Validation: Out-of-sample performance (5-fold CV) and Baseline Comparisons.}
+\label{tab:calibration_validation}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrr}
+\toprule
+\multicolumn{4}{l}{\textbf{Panel A: Out-of-Sample CV Metrics}} \\
+Metric & Mean & Std. Dev & Range \\
+\midrule
+R2 & 0.492 & 0.030 & [0.450, 0.524] \\
+MAE & 0.056 & 0.003 & [0.052, 0.060] \\
+RMSE & 0.070 & 0.003 & [0.067, 0.075] \\
+\midrule
+\multicolumn{4}{l}{\textbf{Panel B: Correlation with AI Applicability}} \\
+Model & Correlation ($r$) & & \\
+\midrule
+Calibrated & 0.705 & & \\
+Uncalibrated (Equal) & 0.551 & & \\
+ToolTech Only & 0.511 & & \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
